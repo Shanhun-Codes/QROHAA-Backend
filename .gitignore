@@ -41,6 +41,22 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .env.local
+.env.*
+
+# Local dev database files
+*.db
+*.db-journal
+dev.db
+prisma/dev.db
+
+# Generated Prisma client output
+/generated/prisma
+
+# Local AI / editor tooling created by Prisma setup
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
 
 # temp directory
 .temp
@@ -54,3 +70,5 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+/generated/prisma
