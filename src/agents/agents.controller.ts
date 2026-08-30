@@ -19,7 +19,7 @@ export class AgentsController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.agentsService.findOne(+id);
+    return this.agentsService.findOne(id);
   }
 
   @Patch(':id')

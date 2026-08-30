@@ -21,6 +21,7 @@ import { CommonModule } from './common/common.module';
     CommonModule,
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '.env.local',
     }),
   ],
   controllers: [AppController],

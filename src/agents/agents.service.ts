@@ -57,9 +57,8 @@ export class AgentsService {
         firstName: createAgentDto.firstName,
         lastName: createAgentDto.lastName,
         email: createAgentDto.email,
-        phone: createAgentDto.phone ?? null,
+        phone: createAgentDto.phone,
         brokerageName: createAgentDto.brokerageName ?? null,
-        active: createAgentDto.active ?? createAgentDto.isActive ?? true,
       },
     });
   }
@@ -70,7 +69,7 @@ export class AgentsService {
     });
   }
 
-  async findOne(id: number) {
+  async findOne(id: string) {
     return this.prisma.agent.findUnique({
       where: { id },
     });

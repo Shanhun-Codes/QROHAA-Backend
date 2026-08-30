@@ -14,18 +14,14 @@ datasource db {
 }
 
 model Agent {
-  id            Int     @id @default(autoincrement())
+  id            String  @id @default(cuid())
   slug          String  @unique
   firstName     String
   lastName      String
   email         String  @unique
-  phone         String?
+  phone         String  @unique
   brokerageName String?
-
-  active Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
-
