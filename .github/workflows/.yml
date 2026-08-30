@@ -1,0 +1,41 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, qa, dev]
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+      
+      - name: Deploy to Dev
+        if: github.ref == 'refs/heads/dev'
+        run: echo "Deploy to dev server..."
+      
+      - name: Deploy to QA
+        if: github.ref == 'refs/heads/qa'
+        run: echo "Deploy to qa server..."
+      
+      - name: Deploy to Prod
+        if: github.ref == 'refs/heads/main'
+        run: echo "Deploy to prod server..."
