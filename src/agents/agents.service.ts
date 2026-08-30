@@ -81,6 +81,24 @@ export class AgentsService {
     });
   }
 
+    async findPublicBySlug(slug: string) {
+    return this.prisma.agent.findUnique({
+      where: { slug }, select: {
+        slug: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        brokerageName: true,
+        headline: true,
+        logoUrl: true,
+        headshotUrl: true,
+        primaryColor: true,
+        secondaryColor: true
+      }
+    });
+  }
+
   update(id: number, updateAgentDto: UpdateAgentDto) {
     return `This action updates a #${id} agent`;
   }

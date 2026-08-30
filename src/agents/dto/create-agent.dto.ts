@@ -1,4 +1,11 @@
-import { IsEmail, IsNotEmpty, IsPhoneNumber, IsString } from 'class-validator';
+import {
+  IsEmail,
+  IsHexColor,
+  IsNotEmpty,
+  IsOptional,
+  IsPhoneNumber,
+  IsString,
+} from 'class-validator';
 
 export class CreateAgentDto {
   @IsString()
@@ -16,21 +23,27 @@ export class CreateAgentDto {
   @IsPhoneNumber('US')
   phone!: string;
 
+  @IsOptional()
   @IsString()
   brokerageName?: string;
 
+  @IsOptional()
   @IsString()
   headline?: string;
 
+  @IsOptional()
   @IsString()
   logoUrl?: string;
 
+  @IsOptional()
   @IsString()
   headshotUrl?: string;
 
-  @IsString()
+  @IsOptional()
+  @IsHexColor()
   primaryColor?: string;
 
-  @IsString()
+  @IsOptional()
+  @IsHexColor()
   secondaryColor?: string;
 }
