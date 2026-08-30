@@ -59,6 +59,12 @@ export class AgentsService {
         email: createAgentDto.email,
         phone: createAgentDto.phone,
         brokerageName: createAgentDto.brokerageName ?? null,
+        headline: createAgentDto.headline ?? "",
+        logoUrl: createAgentDto.logoUrl ?? "",
+        headshotUrl: createAgentDto.headshotUrl ?? "",
+        primaryColor: createAgentDto.primaryColor ?? "",
+        secondaryColor: createAgentDto.secondaryColor ?? ""
+
       },
     });
   }

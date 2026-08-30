@@ -8,14 +8,29 @@ export class CreateAgentDto {
   @IsString()
   @IsNotEmpty()
   lastName!: string;
-  
+
   @IsEmail({}, { message: 'Invalid email address' })
   email!: string;
-  
+
   @IsString()
   @IsPhoneNumber('US')
   phone!: string;
 
   @IsString()
   brokerageName?: string;
+
+  @IsString()
+  headline?: string;
+
+  @IsString()
+  logoUrl?: string;
+
+  @IsString()
+  headshotUrl?: string;
+
+  @IsString()
+  primaryColor?: string;
+
+  @IsString()
+  secondaryColor?: string;
 }

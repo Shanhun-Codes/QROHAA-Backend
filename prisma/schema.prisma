@@ -19,8 +19,15 @@ model Agent {
   firstName     String
   lastName      String
   email         String  @unique
-  phone         String  @unique
+  phone         String 
+
   brokerageName String?
+
+  headline       String?
+  logoUrl        String?
+  headshotUrl    String?
+  primaryColor   String?
+  secondaryColor String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
