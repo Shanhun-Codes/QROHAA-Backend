@@ -23,7 +23,9 @@ export class OpenHouseService {
   }
 
   findAll() {
-    return `This action returns all openHouse`;
+    return this.prisma.openHouse.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   findOne(id: number) {

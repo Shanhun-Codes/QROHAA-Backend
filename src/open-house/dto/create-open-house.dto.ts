@@ -1,4 +1,4 @@
-import { IsDate, IsNotEmpty, IsString } from 'class-validator';
+import { IsDateString, IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateOpenHouseDto {
   @IsString()
@@ -9,11 +9,11 @@ export class CreateOpenHouseDto {
   @IsNotEmpty()
   propertyId!: string;
 
-  @IsDate()
+  @IsDateString()
   @IsNotEmpty()
   startsAt!: Date;
 
-  @IsDate()
+  @IsDateString()
   @IsNotEmpty()
   endsAt!: Date;
 }
