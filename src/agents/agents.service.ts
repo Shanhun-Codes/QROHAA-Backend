@@ -7,32 +7,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class AgentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private generateSlug(firstName: string, lastName: string): string {
-    return `${firstName} ${lastName}`
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-');
-  }
-
-  private async generateUniqueSlug(
-    firstName: string,
-    lastName: string,
-  ): Promise<string> {
-    const baseSlug = this.generateSlug(firstName, lastName);
-    let slug = baseSlug;
-    let counter = 1;
-
-    while (await this.prisma.agent.findUnique({ where: { slug } })) {
-      slug = `${baseSlug}-${counter}`;
-      counter += 1;
-    }
-
-    return slug;
-  }
-
-  create(createAgentDto: CreateAgentDto) {
+  async create(createAgentDto: CreateAgentDto) {
     const slug = await this.generateUniqueSlug(
       createAgentDto.firstName,
       createAgentDto.lastName,
@@ -92,5 +67,30 @@ export class AgentsService {
 
   remove(id: number) {
     return `This action removes a #${id} agent`;
+  }
+
+  private generateSlug(firstName: string, lastName: string): string {
+    return `${firstName} ${lastName}`
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+  }
+
+  private async generateUniqueSlug(
+    firstName: string,
+    lastName: string,
+  ): Promise<string> {
+    const baseSlug = this.generateSlug(firstName, lastName);
+    let slug = baseSlug;
+    let counter = 1;
+
+    while (await this.prisma.agent.findUnique({ where: { slug } })) {
+      slug = `${baseSlug}-${counter}`;
+      counter += 1;
+    }
+
+    return slug;
   }
 }

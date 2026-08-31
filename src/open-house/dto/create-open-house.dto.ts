@@ -1,22 +1,20 @@
-import { IsString } from "class-validator";
+import { IsDate, IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateOpenHouseDto {
- @IsStr
+  @IsString()
+  @IsNotEmpty()
+  agentId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  propertyId!: string;
+
+  @IsDate()
+  @IsNotEmpty()
+  startsAt!: Date;
+
+  @IsDate()
+  @IsNotEmpty()
+  endsAt!: Date;
 }
-// model OpenHouse {
-//   id String @id @default(cuid())
 
-//   publicCode String @unique
-
-//   startsAt DateTime
-//   endsAt   DateTime
-
-//   agentId String
-//   agent   Agent  @relation(fields: [agentId], references: [id])
-
-//   propertyId String
-//   property   Property @relation(fields: [propertyId], references: [id])
-
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-// }
