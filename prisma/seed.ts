@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import {
+  FeedbackQuestionCategory,
   FeedbackQuestionType,
   PrismaClient,
 } from '../generated/prisma/client';
@@ -19,6 +20,7 @@ type QuestionSeed = {
   key: string;
   label: string;
   type: FeedbackQuestionType;
+  category: FeedbackQuestionCategory;
   required?: boolean;
   options?: { label: string; value: string }[];
 };
@@ -56,6 +58,7 @@ const questions: QuestionSeed[] = [
     key: 'source',
     label: 'How did you hear about this open house?',
     type: 'SINGLE_SELECT',
+    category: 'BUYER_PROFILE',
     options: [
       { label: 'Zillow', value: 'ZILLOW' },
       { label: 'Realtor.com', value: 'REALTOR_COM' },
@@ -71,6 +74,7 @@ const questions: QuestionSeed[] = [
     key: 'budget_range',
     label: 'Budget Range',
     type: 'SINGLE_SELECT',
+    category: 'BUYER_PROFILE',
     options: [
       { label: 'Under $300k', value: 'UNDER_300K' },
       { label: '$300k - $450k', value: 'FROM_300K_TO_450K' },
@@ -83,17 +87,20 @@ const questions: QuestionSeed[] = [
     key: 'neighborhoods',
     label: 'Which neighborhoods interest you most?',
     type: 'TEXT',
+    category: 'BUYER_PROFILE',
   },
   {
     key: 'neighborhood_resident',
     label: 'Do you live in this neighborhood?',
     type: 'SINGLE_SELECT',
+    category: 'BUYER_PROFILE',
     options: [{ label: 'Yes', value: 'YES' }, { label: 'No', value: 'NO' }],
   },
   {
     key: 'purchase_timeline',
     label: 'When are you looking to buy?',
     type: 'SINGLE_SELECT',
+    category: 'BUYER_PROFILE',
     options: [
       { label: 'ASAP', value: 'ASAP' },
       { label: '1-3 months', value: 'ONE_TO_THREE_MONTHS' },
@@ -102,21 +109,23 @@ const questions: QuestionSeed[] = [
       { label: 'Just browsing', value: 'JUST_BROWSING' },
     ],
   },
-  { key: 'location_rating', label: 'Location', type: 'RATING', options: ratingOptions },
-  { key: 'price_rating', label: 'Price', type: 'RATING', options: ratingOptions },
-  { key: 'floor_plan_rating', label: 'Floorplan', type: 'RATING', options: ratingOptions },
-  { key: 'curb_appeal_rating', label: 'Curb Appeal', type: 'RATING', options: ratingOptions },
-  { key: 'overall_appeal_rating', label: 'Overall Appeal', type: 'RATING', options: ratingOptions },
+  { key: 'location_rating', label: 'Location', type: 'RATING', category: 'PROPERTY_FEEDBACK', options: ratingOptions },
+  { key: 'price_rating', label: 'Price', type: 'RATING', category: 'PROPERTY_FEEDBACK', options: ratingOptions },
+  { key: 'floor_plan_rating', label: 'Floorplan', type: 'RATING', category: 'PROPERTY_FEEDBACK', options: ratingOptions },
+  { key: 'curb_appeal_rating', label: 'Curb Appeal', type: 'RATING', category: 'PROPERTY_FEEDBACK', options: ratingOptions },
+  { key: 'overall_appeal_rating', label: 'Overall Appeal', type: 'RATING', category: 'PROPERTY_FEEDBACK', options: ratingOptions },
   {
     key: 'liked_most',
     label: 'What did you like most about this house?',
     type: 'TEXTAREA',
+    category: 'PROPERTY_FEEDBACK',
   },
-  { key: 'liked_least', label: 'What did you like least?', type: 'TEXTAREA' },
+  { key: 'liked_least', label: 'What did you like least?', type: 'TEXTAREA', category: 'PROPERTY_FEEDBACK' },
   {
     key: 'pre_qualified',
     label: 'Have you been prequalified for a mortgage?',
     type: 'SINGLE_SELECT',
+    category: 'BUYING_READINESS',
     options: [
       { label: 'Yes', value: 'YES' },
       { label: 'No', value: 'NO' },
@@ -127,6 +136,7 @@ const questions: QuestionSeed[] = [
     key: 'working_with_agent',
     label: 'Are you currently working with a real estate agent?',
     type: 'SINGLE_SELECT',
+    category: 'BUYING_READINESS',
     options: [{ label: 'Yes', value: 'YES' }, { label: 'No', value: 'NO' }],
   },
 ];
@@ -196,6 +206,11 @@ async function main() {
   });
 
   await prisma.$transaction(async (transaction) => {
+    await transaction.feedbackQuestion.updateMany({
+      where: { key: { in: legacyQuestionKeys } },
+      data: { active: false },
+    });
+
     await transaction.agentFeedbackQuestion.deleteMany({
       where: {
         agentId: agent.id,
@@ -215,12 +230,14 @@ async function main() {
         update: {
           label: question.label,
           type: question.type,
+          category: question.category,
           active: true,
         },
         create: {
           key: question.key,
           label: question.label,
           type: question.type,
+          category: question.category,
         },
       });
 

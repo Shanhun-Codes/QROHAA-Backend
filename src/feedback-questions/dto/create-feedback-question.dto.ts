@@ -1,21 +1,39 @@
-import { IsBoolean, IsString } from 'class-validator';
-import { FeedbackQuestionType } from 'generated/prisma/enums';
+import { Type } from 'class-transformer';
+import { IsArray, IsBoolean, IsEnum, IsInt, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { FeedbackQuestionCategory, FeedbackQuestionType } from 'generated/prisma/enums';
+
+class FeedbackQuestionOptionDto {
+  @IsString()
+  label!: string;
+
+  @IsString()
+  value!: string;
+
+  @IsInt()
+  sortOrder!: number;
+}
 
 export class CreateFeedbackQuestionDto {
   @IsString()
-  key!: string
+  key!: string;
 
   @IsString()
-  label!: string
+  label!: string;
 
-  type!: FeedbackQuestionType
+  @IsEnum(FeedbackQuestionType)
+  type!: FeedbackQuestionType;
 
+  @IsOptional()
+  @IsEnum(FeedbackQuestionCategory)
+  category?: FeedbackQuestionCategory;
+
+  @IsOptional()
   @IsBoolean()
-  active?: boolean
+  active?: boolean;
 
-  options?: {
-    label: string
-    value: string
-    sortOrder: number
-  }[];
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FeedbackQuestionOptionDto)
+  options?: FeedbackQuestionOptionDto[];
 }

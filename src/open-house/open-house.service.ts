@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateOpenHouseDto } from './dto/create-open-house.dto';
 import { UpdateOpenHouseDto } from './dto/update-open-house.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -10,16 +10,24 @@ export class OpenHouseService {
 
   async create(createOpenHouseDto: CreateOpenHouseDto) {
     const publicCode = await this.generateUniquePublicCode();
-
-    return this.prisma.openHouse.create({
+    const selectedQuestions = await this.prisma.agentFeedbackQuestion.findMany({
+      where: { agentId: createOpenHouseDto.agentId, question: { active: true } },
+      select: { questionId: true, required: true, sortOrder: true },
+    });
+    if (!selectedQuestions.length) {
+      throw new BadRequestException('The agent must have active feedback questions before creating an open house.');
+    }
+    return this.prisma.$transaction((transaction) => transaction.openHouse.create({
       data: {
         publicCode,
         startsAt: createOpenHouseDto.startsAt,
         endsAt: createOpenHouseDto.endsAt,
         agent: { connect: { id: createOpenHouseDto.agentId } },
         property: { connect: { id: createOpenHouseDto.propertyId } },
+        openHouseFeedbackQuestions: { createMany: { data: selectedQuestions } },
       },
-    });
+      include: { openHouseFeedbackQuestions: { orderBy: { sortOrder: 'asc' } } },
+    }));
   }
 
   findAll() {
