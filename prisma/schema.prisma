@@ -14,12 +14,12 @@ datasource db {
 }
 
 model Agent {
-  id            String  @id @default(cuid())
-  slug          String  @unique
-  firstName     String
-  lastName      String
-  email         String  @unique
-  phone         String 
+  id        String @id @default(cuid())
+  slug      String @unique
+  firstName String
+  lastName  String
+  email     String @unique
+  phone     String
 
   brokerageName String?
 
@@ -28,7 +28,120 @@ model Agent {
   headshotUrl    String?
   primaryColor   String?
   secondaryColor String?
+  accentColor    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  openHouses OpenHouse[]
+
+  agentFeedbackQuestions AgentFeedbackQuestion[]
+}
+
+model Property {
+  id String @id @default(cuid())
+
+  street  String
+  street2 String?
+  city    String
+  state   String
+  zip     String
+
+  listingPriceCents Int?
+
+  openHouses OpenHouse[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OpenHouse {
+  id String @id @default(cuid())
+
+  publicCode String @unique
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  openHouseFeedbackQuestions OpenHouseFeedbackQuestion[]
+}
+
+enum FeedbackQuestionType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  BOOLEAN
+  RATING
+  SINGLE_SELECT
+  MULTI_SELECT
+}
+
+enum FeedbackQuestionCategory {
+  BUYER_PROFILE
+  PROPERTY_FEEDBACK
+  BUYING_READINESS
+  GENERAL
+}
+
+model FeedbackQuestion {
+  id       String                   @id @default(cuid())
+  key      String                   @unique
+  label    String
+  type     FeedbackQuestionType
+  category FeedbackQuestionCategory @default(GENERAL)
+  active   Boolean                  @default(true)
+
+  options FeedbackQuestionOption[]
+
+  agentSelections    AgentFeedbackQuestion[]
+  openHouseQuestions OpenHouseFeedbackQuestion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FeedbackQuestionOption {
+  id String @id @default(cuid())
+
+  label     String
+  value     String
+  sortOrder Int
+
+  questionId String
+  question   FeedbackQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model AgentFeedbackQuestion {
+  agentId    String
+  questionId String
+
+  required  Boolean @default(false)
+  sortOrder Int
+
+  agent    Agent            @relation(fields: [agentId], references: [id])
+  question FeedbackQuestion @relation(fields: [questionId], references: [id])
+
+  @@id([agentId, questionId])
+}
+
+model OpenHouseFeedbackQuestion {
+  openHouseId String
+  questionId  String
+
+  required  Boolean
+  sortOrder Int
+
+  openHouse OpenHouse        @relation(fields: [openHouseId], references: [id])
+  question  FeedbackQuestion @relation(fields: [questionId], references: [id])
+
+  @@id([openHouseId, questionId])
 }

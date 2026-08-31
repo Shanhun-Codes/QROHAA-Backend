@@ -6,6 +6,12 @@ import {
   IsPhoneNumber,
   IsString,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
+
+const normalizeHexColor = ({ value }: { value: unknown }) =>
+  typeof value === 'string' && value && !value.startsWith('#')
+    ? `#${value}`
+    : value;
 
 export class CreateAgentDto {
   @IsString()
@@ -40,10 +46,17 @@ export class CreateAgentDto {
   headshotUrl?: string;
 
   @IsOptional()
+  @Transform(normalizeHexColor)
   @IsHexColor()
   primaryColor?: string;
 
   @IsOptional()
+  @Transform(normalizeHexColor)
   @IsHexColor()
   secondaryColor?: string;
+
+  @IsOptional()
+  @Transform(normalizeHexColor)
+  @IsHexColor()
+  accentColor?: string;
 }

@@ -7,10 +7,16 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "db:seed": "tsx prisma/seed.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
+    "prepare": "husky",
+    "prisma:generate": "prisma generate",
     "start": "nest start",
     "prestart:dev": "lsof -ti:3000 | xargs kill 2>/dev/null || true",
     "start:dev": "nest start --watch",
+    "prestart:qa": "lsof -ti:3001 | xargs kill 2>/dev/null || true",
+    "start:qa": "NODE_ENV=qa nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
@@ -18,7 +24,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "verify": "npm run prisma:generate && npm test -- --runInBand && npm run build"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -26,6 +33,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/mapped-types": "*",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.4.7",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "class-transformer": "^0.5.1",
@@ -47,6 +55,7 @@
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^17.0.0",
+    "husky": "^9.1.7",
     "jest": "^30.0.0",
     "prettier": "^3.4.2",
     "prisma": "^7.10.0",
@@ -56,6 +65,7 @@
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
   },
@@ -74,6 +84,14 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1",
+      "^generated/(.*)$": "<rootDir>/../generated/$1"
+    },
+    "setupFilesAfterEnv": [
+      "<rootDir>/test.setup.ts"
+    ],
+    "testEnvironment": "node",
+    "verbose": true
   }
 }
