@@ -3,31 +3,22 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AgentsModule } from './agents/agents.module';
-import { LeadsModule } from './leads/leads.module';
-import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { EmailModule } from './email/email.module';
-import { DatabaseModule } from './database/database.module';
-import { CommonModule } from './common/common.module';
+import { PropertyModule } from './property/property.module';
+import { PrismaService } from './prisma/prisma.service';
+import { OpenHouseModule } from './open-house/open-house.module';
 
 @Module({
   imports: [
     AgentsModule,
-    LeadsModule,
-    AuthModule,
-    UsersModule,
-    EmailModule,
-    DatabaseModule,
-    CommonModule,
+    PropertyModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [
-        `.env.${process.env.NODE_ENV ?? 'local'}`,
-        '.env.local',
-      ],
+      envFilePath: [`.env.${process.env.NODE_ENV ?? 'local'}`, '.env.local'],
     }),
+    PropertyModule,
+    OpenHouseModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, PrismaService],
 })
 export class AppModule {}

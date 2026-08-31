@@ -14,12 +14,12 @@ datasource db {
 }
 
 model Agent {
-  id            String  @id @default(cuid())
-  slug          String  @unique
-  firstName     String
-  lastName      String
-  email         String  @unique
-  phone         String 
+  id        String @id @default(cuid())
+  slug      String @unique
+  firstName String
+  lastName  String
+  email     String @unique
+  phone     String
 
   brokerageName String?
 
@@ -28,6 +28,43 @@ model Agent {
   headshotUrl    String?
   primaryColor   String?
   secondaryColor String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  openHouses OpenHouse[]
+}
+
+model Property {
+  id String @id @default(cuid())
+
+  street  String
+  street2 String?
+  city    String
+  state   String
+  zip     String
+
+  listingPriceCents Int?
+
+  openHouses OpenHouse[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OpenHouse {
+  id String @id @default(cuid())
+
+  publicCode String @unique
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -1,27 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../../generated/prisma/client';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class AgentsService {
-  private prisma: PrismaClient;
-
-  constructor(private readonly configService: ConfigService) {
-    const databaseUrl = this.configService.get<string>('DATABASE_URL');
-
-    if (!databaseUrl) {
-      throw new Error('DATABASE_URL is not set');
-    }
-
-    this.prisma = new PrismaClient({
-      adapter: new PrismaPg({
-        connectionString: databaseUrl,
-      }),
-    });
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   private generateSlug(firstName: string, lastName: string): string {
     return `${firstName} ${lastName}`
@@ -32,7 +16,10 @@ export class AgentsService {
       .replace(/-+/g, '-');
   }
 
-  private async generateUniqueSlug(firstName: string, lastName: string): Promise<string> {
+  private async generateUniqueSlug(
+    firstName: string,
+    lastName: string,
+  ): Promise<string> {
     const baseSlug = this.generateSlug(firstName, lastName);
     let slug = baseSlug;
     let counter = 1;
@@ -45,7 +32,7 @@ export class AgentsService {
     return slug;
   }
 
-  async create(createAgentDto: CreateAgentDto) {
+  create(createAgentDto: CreateAgentDto) {
     const slug = await this.generateUniqueSlug(
       createAgentDto.firstName,
       createAgentDto.lastName,
@@ -59,31 +46,31 @@ export class AgentsService {
         email: createAgentDto.email,
         phone: createAgentDto.phone,
         brokerageName: createAgentDto.brokerageName ?? null,
-        headline: createAgentDto.headline ?? "",
-        logoUrl: createAgentDto.logoUrl ?? "",
-        headshotUrl: createAgentDto.headshotUrl ?? "",
-        primaryColor: createAgentDto.primaryColor ?? "",
-        secondaryColor: createAgentDto.secondaryColor ?? ""
-
+        headline: createAgentDto.headline ?? '',
+        logoUrl: createAgentDto.logoUrl ?? '',
+        headshotUrl: createAgentDto.headshotUrl ?? '',
+        primaryColor: createAgentDto.primaryColor ?? '',
+        secondaryColor: createAgentDto.secondaryColor ?? '',
       },
     });
   }
 
-  async findAll() {
+  findAll() {
     return this.prisma.agent.findMany({
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(id: string) {
+  findOne(id: string) {
     return this.prisma.agent.findUnique({
       where: { id },
     });
   }
 
-    async findPublicBySlug(slug: string) {
+  findPublicBySlug(slug: string) {
     return this.prisma.agent.findUnique({
-      where: { slug }, select: {
+      where: { slug },
+      select: {
         slug: true,
         firstName: true,
         lastName: true,
@@ -94,8 +81,8 @@ export class AgentsService {
         logoUrl: true,
         headshotUrl: true,
         primaryColor: true,
-        secondaryColor: true
-      }
+        secondaryColor: true,
+      },
     });
   }
 
