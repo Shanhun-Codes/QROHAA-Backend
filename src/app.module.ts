@@ -21,7 +21,10 @@ import { CommonModule } from './common/common.module';
     CommonModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env.local',
+      envFilePath: [
+        `.env.${process.env.NODE_ENV ?? 'local'}`,
+        '.env.local',
+      ],
     }),
   ],
   controllers: [AppController],
