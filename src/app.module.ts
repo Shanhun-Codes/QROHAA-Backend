@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { AgentsModule } from './agents/agents.module';
 import { PropertyModule } from './property/property.module';
 import { PrismaService } from './prisma/prisma.service';
@@ -22,7 +20,6 @@ import { FeedbackQuestionsModule } from './feedback-questions/feedback-questions
     PublicModule,
     FeedbackQuestionsModule,
   ],
-  controllers: [AppController],
-  providers: [AppService, PrismaService],
+  providers: [PrismaService],
 })
 export class AppModule {}
