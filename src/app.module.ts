@@ -6,6 +6,7 @@ import { AgentsModule } from './agents/agents.module';
 import { PropertyModule } from './property/property.module';
 import { PrismaService } from './prisma/prisma.service';
 import { OpenHouseModule } from './open-house/open-house.module';
+import { PublicModule } from './public/public.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { OpenHouseModule } from './open-house/open-house.module';
     }),
     PropertyModule,
     OpenHouseModule,
+    PublicModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

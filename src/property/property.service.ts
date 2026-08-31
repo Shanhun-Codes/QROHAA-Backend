@@ -5,8 +5,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class PropertyService {
-
-constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   create(createPropertyDto: CreatePropertyDto) {
     return this.prisma.property.create({
@@ -17,7 +16,7 @@ constructor(private readonly prisma: PrismaService) {}
         state: createPropertyDto.state,
         zip: createPropertyDto.zip,
         listingPriceCents: createPropertyDto.listingPriceCents,
-      }
+      },
     });
   }
 
@@ -27,8 +26,8 @@ constructor(private readonly prisma: PrismaService) {}
     });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} property`;
+  findPropertyById(id: string) {
+    return this.prisma.property.findUnique({ where: { id } });
   }
 
   update(id: number, updatePropertyDto: UpdatePropertyDto) {
