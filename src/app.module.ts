@@ -7,6 +7,7 @@ import { OpenHouseModule } from './open-house/open-house.module';
 import { PublicModule } from './public/public.module';
 import { FeedbackQuestionsModule } from './feedback-questions/feedback-questions.module';
 import { FeedbackSubmissionModule } from './feedback-submission/feedback-submission.module';
+import { LeadsModule } from './leads/leads.module';
 
 @Module({
   imports: [
@@ -20,7 +21,8 @@ import { FeedbackSubmissionModule } from './feedback-submission/feedback-submiss
     OpenHouseModule,
     PublicModule,
     FeedbackQuestionsModule,
-    FeedbackSubmissionModule
+    FeedbackSubmissionModule,
+    LeadsModule
   ],
   providers: [PrismaService],
 })
