@@ -101,8 +101,25 @@ export class AgentsService {
     });
   }
 
-  update(id: number, updateAgentDto: UpdateAgentDto) {
-    return `This action updates a #${id} agent`;
+  async update(id: string, updateAgentDto: UpdateAgentDto) {
+    await this.ensureAgentExists(id);
+    const { primaryColor, secondaryColor, accentColor, ...agentData } = updateAgentDto;
+
+    return this.prisma.agent.update({
+      where: { id },
+      data: {
+        ...agentData,
+        ...(primaryColor !== undefined && {
+          primaryColor: this.normalizeHexColor(primaryColor),
+        }),
+        ...(secondaryColor !== undefined && {
+          secondaryColor: this.normalizeHexColor(secondaryColor),
+        }),
+        ...(accentColor !== undefined && {
+          accentColor: this.normalizeHexColor(accentColor),
+        }),
+      },
+    });
   }
 
   remove(id: number) {

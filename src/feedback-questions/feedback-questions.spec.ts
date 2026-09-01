@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+
 jest.mock('src/prisma/prisma.service', () => ({ PrismaService: class PrismaService {} }));
 
 import { NotFoundException } from '@nestjs/common';
@@ -8,12 +10,14 @@ describe('FeedbackQuestions resource', () => {
   const transaction = { feedbackQuestion: { update: jest.fn() }, feedbackQuestionOption: { deleteMany: jest.fn() } } as any;
   const prisma = {
     feedbackQuestion: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), delete: jest.fn() },
-    $transaction: jest.fn((callback) => callback(transaction)),
+    $transaction: jest.fn((callback: (client: typeof transaction) => unknown) => callback(transaction)),
   } as any;
   const service = new FeedbackQuestionsService(prisma);
   const controller = new FeedbackQuestionsController(service);
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   it('creates questions with their ordered options', () => {
     const dto = { key: 'source', label: 'Source', type: 'SINGLE_SELECT' as any, options: [{ label: 'Zillow', value: 'ZILLOW', sortOrder: 0 }] };

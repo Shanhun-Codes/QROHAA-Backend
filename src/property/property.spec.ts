@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+
 jest.mock('src/prisma/prisma.service', () => ({ PrismaService: class PrismaService {} }));
 jest.mock('@nestjs/mapped-types', () => ({ PartialType: (classRef: unknown) => classRef }));
 
@@ -9,7 +11,9 @@ describe('Property resource', () => {
   const service = new PropertyService(prisma);
   const controller = new PropertyController(service);
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   it('creates a property with the supplied address and listing price', async () => {
     const dto = { street: '310 N Jefferson', street2: 'Apt 126', city: 'Springfield', state: 'MO', zip: '65806', listingPriceCents: 35000000 };

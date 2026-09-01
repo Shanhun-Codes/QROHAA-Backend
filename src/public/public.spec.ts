@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+
 jest.mock('src/prisma/prisma.service', () => ({ PrismaService: class PrismaService {} }));
 
 import { PublicController } from './public.controller';
@@ -8,21 +10,24 @@ describe('Public resource', () => {
   const service = new PublicService(prisma);
   const controller = new PublicController(service);
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-  it('selects only public agent profile fields', () => {
+  it('selects public agent profile fields including email', () => {
     service.findPublicAgentBySlug('michael-elder');
     expect(prisma.agent.findUnique).toHaveBeenCalledWith(expect.objectContaining({
       where: { slug: 'michael-elder' },
-      select: expect.not.objectContaining({ email: true }),
+      select: expect.objectContaining({ email: true }),
     }));
   });
 
   it('returns resolved branding and sorted question DTOs for public configuration', async () => {
-    prisma.agent.findUnique.mockResolvedValue({ slug: 'michael-elder', firstName: 'Michael', lastName: 'Elder', phone: '4175763487', brokerageName: null, headline: null, logoUrl: null, headshotUrl: null, primaryColor: null, secondaryColor: null, accentColor: null });
+    prisma.agent.findUnique.mockResolvedValue({ slug: 'michael-elder', firstName: 'Michael', lastName: 'Elder', email: 'michael@example.com', phone: '4175763487', brokerageName: null, headline: null, logoUrl: null, headshotUrl: null, primaryColor: null, secondaryColor: null, accentColor: null });
     prisma.openHouse.findFirst.mockResolvedValue({ publicCode: 'CODE1234', startsAt: new Date(), endsAt: new Date(), property: null, openHouseFeedbackQuestions: [{ required: true, sortOrder: 0, question: { id: 'question-1', key: 'source', label: 'Source', type: 'SINGLE_SELECT', category: 'BUYER_PROFILE', options: [] } }] });
     const result = await service.getConfigurationData('michael-elder', 'CODE1234');
     expect(result.branding).toEqual({ primaryColor: '#1E3A5F', secondaryColor: '#4F6F8F', accentColor: '#D4A853' });
+    expect(result.agent?.email).toBe('michael@example.com');
     expect(result.feedbackForm.questions[0]).toMatchObject({ id: 'question-1', required: true, sortOrder: 0 });
   });
 

@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+
 jest.mock('src/prisma/prisma.service', () => ({ PrismaService: class PrismaService {} }));
 jest.mock('@nestjs/mapped-types', () => ({ PartialType: (classRef: unknown) => classRef }));
 
@@ -8,15 +10,18 @@ import { AgentsService } from './agents.service';
 describe('Agents resource', () => {
   const transaction = { agent: { create: jest.fn() }, agentFeedbackQuestion: { deleteMany: jest.fn(), createMany: jest.fn(), findMany: jest.fn() } } as any;
   const prisma = {
-    agent: { create: jest.fn(), findUnique: jest.fn(), findMany: jest.fn() },
+    agent: { create: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn() },
     feedbackQuestion: { findMany: jest.fn(), count: jest.fn() },
     agentFeedbackQuestion: { findMany: jest.fn() },
-    $transaction: jest.fn((callback) => callback(transaction)),
+    $transaction: jest.fn((callback: (client: typeof transaction) => unknown) => callback(transaction)),
   } as any;
   const service = new AgentsService(prisma);
   const controller = new AgentsController(service);
 
-  beforeEach(() => { jest.clearAllMocks(); prisma.agent.findUnique.mockResolvedValue(null); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma.agent.findUnique.mockResolvedValue(null);
+  });
 
   it('creates an agent with normalized colors and active default questions', async () => {
     prisma.feedbackQuestion.findMany.mockResolvedValue([{ id: 'question-1' }]);
@@ -35,5 +40,17 @@ describe('Agents resource', () => {
     await service.getFeedbackQuestions('agent-1');
     expect(prisma.agentFeedbackQuestion.findMany).toHaveBeenCalledWith(expect.objectContaining({ orderBy: { sortOrder: 'asc' } }));
     expect(controller.getFeedbackQuestions('agent-1')).toBeInstanceOf(Promise);
+  });
+
+  it('updates an agent by string ID and normalizes supplied branding colors', async () => {
+    prisma.agent.findUnique.mockResolvedValue({ id: 'agent-1' });
+    prisma.agent.update.mockResolvedValue({ id: 'agent-1', primaryColor: '#ffffff' });
+
+    await controller.update('agent-1', { headline: 'Updated', primaryColor: 'ffffff' } as any);
+
+    expect(prisma.agent.update).toHaveBeenCalledWith({
+      where: { id: 'agent-1' },
+      data: { headline: 'Updated', primaryColor: '#ffffff' },
+    });
   });
 });

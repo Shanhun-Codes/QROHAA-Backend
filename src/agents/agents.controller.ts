@@ -35,7 +35,7 @@ export class AgentsController {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateAgentDto: UpdateAgentDto) {
-    return this.agentsService.update(+id, updateAgentDto);
+    return this.agentsService.update(id, updateAgentDto);
   }
 
   @Delete(':id')

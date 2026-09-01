@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+
 jest.mock('src/prisma/prisma.service', () => ({ PrismaService: class PrismaService {} }));
 jest.mock('@nestjs/mapped-types', () => ({ PartialType: (classRef: unknown) => classRef }));
 
@@ -10,7 +12,7 @@ describe('OpenHouse resource', () => {
   const prisma = {
     openHouse: { findUnique: jest.fn(), findMany: jest.fn() },
     agentFeedbackQuestion: { findMany: jest.fn() },
-    $transaction: jest.fn((callback) => callback(transaction)),
+    $transaction: jest.fn((callback: (client: typeof transaction) => unknown) => callback(transaction)),
   } as any;
   const service = new OpenHouseService(prisma);
   const controller = new OpenHouseController(service);
