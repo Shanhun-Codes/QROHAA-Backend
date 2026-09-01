@@ -1,26 +1,68 @@
 import { Injectable } from '@nestjs/common';
 import { CreateFeedbackSubmissionDto } from './dto/create-feedback-submission.dto';
-import { UpdateFeedbackSubmissionDto } from './dto/update-feedback-submission.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class FeedbackSubmissionService {
+  constructor(private readonly prisma: PrismaService) {}
+
   create(createFeedbackSubmissionDto: CreateFeedbackSubmissionDto) {
-    return 'This action adds a new feedbackSubmission';
+    return this.prisma.feedbackSubmission.create({
+      data: {
+        openHouseId: createFeedbackSubmissionDto.openHouseId,
+        feedbackAnswers: {
+          create: createFeedbackSubmissionDto.feedbackAnswers,
+        },
+      },
+    });
   }
 
-  findAll() {
-    return `This action returns all feedbackSubmission`;
+  async findAll() {
+    const submissions = await this.prisma.feedbackSubmission.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        feedbackAnswers: {
+          include: {
+            question: true,
+          },
+        },
+      },
+    });
+
+    return submissions.map(({ feedbackAnswers, ...submission }) => ({
+      ...submission,
+      questions: feedbackAnswers.map((answer) => ({
+        id: answer.question.id,
+        key: answer.question.key,
+        label: answer.question.label,
+        type: answer.question.type,
+        answer: answer.value,
+      })),
+    }));
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} feedbackSubmission`;
-  }
+  async findOne(id: string) {
+    const submission = await this.prisma.feedbackSubmission.findUnique({
+      where: { id },
+      include: {
+        feedbackAnswers: {
+          include: { question: true },
+        },
+      },
+    });
 
-  update(id: number, updateFeedbackSubmissionDto: UpdateFeedbackSubmissionDto) {
-    return `This action updates a #${id} feedbackSubmission`;
-  }
+    if (!submission) return null;
 
-  remove(id: number) {
-    return `This action removes a #${id} feedbackSubmission`;
+    const { feedbackAnswers, ...submissionData } = submission;
+    return {
+      ...submissionData,
+      questions: feedbackAnswers.map((answer) => ({
+        id: answer.question.id,
+        key: answer.question.key,
+        label: answer.question.label,
+        type: answer.question.type,
+        answer: answer.value,
+      })),
+    };
   }
 }

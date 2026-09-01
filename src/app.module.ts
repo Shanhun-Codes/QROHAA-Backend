@@ -20,6 +20,7 @@ import { FeedbackSubmissionModule } from './feedback-submission/feedback-submiss
     OpenHouseModule,
     PublicModule,
     FeedbackQuestionsModule,
+    FeedbackSubmissionModule
   ],
   providers: [PrismaService],
 })

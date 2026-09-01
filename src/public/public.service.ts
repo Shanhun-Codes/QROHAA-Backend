@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { CreateFeedbackSubmissionDto } from 'src/feedback-submission/dto/create-feedback-submission.dto';
+import { FeedbackSubmissionService } from 'src/feedback-submission/feedback-submission.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 const defaultBranding = {
@@ -9,7 +11,10 @@ const defaultBranding = {
 
 @Injectable()
 export class PublicService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    public feedbackSubmissionService: FeedbackSubmissionService,
+  ) {}
 
   findPublicAgentBySlug(slug: string) {
     return this.prisma.agent.findUnique({
@@ -128,5 +133,31 @@ export class PublicService {
           })) ?? [],
       },
     };
+  }
+
+  async submitFeedback(slug: string, publicCode: string, createFeedbackSubmissionDto: CreateFeedbackSubmissionDto) {
+    const verifyOpenHouse = await this.prisma.openHouse.findFirst({
+      where: { publicCode, agent: { slug } },
+    });
+    if (!verifyOpenHouse) {
+      throw new Error(
+        'Open house not found or not associated with the specified agent.',
+      );
+    }
+
+    const verifyAgent = await this.prisma.agent.findUnique({
+      where: { slug },
+    });
+    if (!verifyAgent) {
+      throw new Error('Agent not found.');
+    }
+
+    const verifiedSubmission = verifyOpenHouse && verifyAgent;
+    if (verifiedSubmission) {
+      const createSubmission = await this.feedbackSubmissionService.create(
+        createFeedbackSubmissionDto,
+      );
+      return { message: 'Feedback submission verified successfully.' };
+    }
   }
 }

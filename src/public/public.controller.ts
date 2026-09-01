@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { PublicService } from './public.service';
 
 @Controller('public')
@@ -19,4 +19,9 @@ export class PublicController {
   getConfigurationData(@Param('slug') slug: string, @Param('publicCode') publicCode: string) {
     return this.publicService.getConfigurationData(slug, publicCode);
   }
+
+  @Post('/agents/:slug/open-house/:publicCode/feedback-submission')
+  submitFeedback(@Param('slug') slug: string, @Param('publicCode') publicCode: string, @Body() createFeedbackSubmissionDto: any) {
+    return this.publicService.submitFeedback(slug, publicCode, createFeedbackSubmissionDto);
+}
 }

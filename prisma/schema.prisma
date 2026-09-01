@@ -156,6 +156,8 @@ model FeedbackSubmission {
   openHouseId String
   openHouse OpenHouse @relation(fields: [openHouseId], references: [id])
 
+  createdAt DateTime @default(now())
+
   feedbackAnswers FeedbackAnswer[]
 }
 
