@@ -36,6 +36,8 @@ model Agent {
   openHouses OpenHouse[]
 
   agentFeedbackQuestions AgentFeedbackQuestion[]
+
+  leads Lead[]
 }
 
 model Property {
@@ -154,11 +156,14 @@ model FeedbackSubmission {
   id String @id @default(cuid())
 
   openHouseId String
-  openHouse OpenHouse @relation(fields: [openHouseId], references: [id])
+  openHouse   OpenHouse @relation(fields: [openHouseId], references: [id])
 
   createdAt DateTime @default(now())
 
   feedbackAnswers FeedbackAnswer[]
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id])
 }
 
 model FeedbackAnswer {
@@ -171,4 +176,32 @@ model FeedbackAnswer {
   question   FeedbackQuestion @relation(fields: [questionId], references: [id])
 
   value String
+}
+
+enum LeadStatusType {
+  NEW
+  CONTACTED
+  FOLLOW_UP
+  QUALIFIED
+  CLOSED
+  LOST
+}
+
+model Lead {
+  id String @id @default(cuid())
+
+  firstName String?
+  lastName  String?
+
+  email String?
+  phone String?
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  status LeadStatusType
+
+  createdAt DateTime @default(now())
+
+  submissions FeedbackSubmission[]
 }
