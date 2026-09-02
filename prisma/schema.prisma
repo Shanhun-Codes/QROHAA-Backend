@@ -36,6 +36,8 @@ model Agent {
   openHouses OpenHouse[]
 
   agentFeedbackQuestions AgentFeedbackQuestion[]
+
+  leads Lead[]
 }
 
 model Property {
@@ -73,6 +75,8 @@ model OpenHouse {
   updatedAt DateTime @updatedAt
 
   openHouseFeedbackQuestions OpenHouseFeedbackQuestion[]
+
+  openHouseFeedbackSubmissions FeedbackSubmission[]
 }
 
 enum FeedbackQuestionType {
@@ -107,6 +111,8 @@ model FeedbackQuestion {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  feedbackAnswers FeedbackAnswer[]
 }
 
 model FeedbackQuestionOption {
@@ -144,4 +150,58 @@ model OpenHouseFeedbackQuestion {
   question  FeedbackQuestion @relation(fields: [questionId], references: [id])
 
   @@id([openHouseId, questionId])
+}
+
+model FeedbackSubmission {
+  id String @id @default(cuid())
+
+  openHouseId String
+  openHouse   OpenHouse @relation(fields: [openHouseId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  feedbackAnswers FeedbackAnswer[]
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id])
+}
+
+model FeedbackAnswer {
+  id String @id @default(cuid())
+
+  submissionId String
+  submission   FeedbackSubmission @relation(fields: [submissionId], references: [id])
+
+  questionId String
+  question   FeedbackQuestion @relation(fields: [questionId], references: [id])
+
+  value String
+}
+
+enum LeadStatusType {
+  NEW
+  CONTACTED
+  FOLLOW_UP
+  QUALIFIED
+  CLOSED
+  LOST
+}
+
+model Lead {
+  id String @id @default(cuid())
+
+  firstName String?
+  lastName  String?
+
+  email String?
+  phone String?
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  status LeadStatusType @default(NEW)
+
+  createdAt DateTime @default(now())
+
+  submissions FeedbackSubmission[]
 }

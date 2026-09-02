@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Put } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Put,
+} from '@nestjs/common';
 import { AgentsService } from './agents.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
@@ -29,13 +38,16 @@ export class AgentsController {
   }
 
   @Put(':agentId/feedback-questions')
-  replaceFeedbackQuestions(@Param('agentId') agentId: string, @Body() dto: ReplaceAgentFeedbackQuestionsDto) {
+  replaceFeedbackQuestions(
+    @Param('agentId') agentId: string,
+    @Body() dto: ReplaceAgentFeedbackQuestionsDto,
+  ) {
     return this.agentsService.replaceFeedbackQuestions(agentId, dto.questions);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateAgentDto: UpdateAgentDto) {
-    return this.agentsService.update(+id, updateAgentDto);
+    return this.agentsService.update(id, updateAgentDto);
   }
 
   @Delete(':id')
