@@ -243,7 +243,7 @@ export class PublicService {
         .map(({ questionId, value }) => ({ questionId, value })),
     );
 
-    const { submission, leadReused } = await this.prisma.$transaction(
+    const { submission, leadAction } = await this.prisma.$transaction(
       async (transaction) => {
         const existingLead = createLead
           ? await transaction.lead.findFirst({
@@ -271,7 +271,14 @@ export class PublicService {
           select: { id: true, leadId: true, createdAt: true },
         });
 
-        return { submission, leadReused: Boolean(existingLead) };
+        return {
+          submission,
+          leadAction: existingLead
+            ? 'LEAD_CONTACT_FOUND_AND_REUSED'
+            : createLead
+              ? 'LEAD_CREATED'
+              : 'NO_LEAD_CREATED',
+        };
       },
     );
 
@@ -285,8 +292,7 @@ export class PublicService {
     return {
       message: 'Feedback submitted successfully.',
       submissionId: submission.id,
-      leadCreated: Boolean(submission.leadId),
-      leadReused,
+      leadAction,
     };
   }
 }

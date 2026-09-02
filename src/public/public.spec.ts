@@ -138,7 +138,7 @@ describe('Public resource', () => {
       ),
     ).resolves.toMatchObject({
       message: 'Feedback submitted successfully.',
-      leadCreated: true,
+      leadAction: 'LEAD_CREATED',
     });
 
     expect(transaction.feedbackSubmission.create).toHaveBeenCalledWith(
@@ -189,7 +189,9 @@ describe('Public resource', () => {
         },
         '127.0.0.1',
       ),
-    ).resolves.toMatchObject({ leadCreated: true, leadReused: true });
+    ).resolves.toMatchObject({
+      leadAction: 'LEAD_CONTACT_FOUND_AND_REUSED',
+    });
 
     expect(transaction.feedbackSubmission.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -232,7 +234,7 @@ describe('Public resource', () => {
         },
         '127.0.0.1',
       ),
-    ).resolves.toMatchObject({ leadCreated: false });
+    ).resolves.toMatchObject({ leadAction: 'NO_LEAD_CREATED' });
 
     expect(transaction.feedbackSubmission.create).toHaveBeenCalledWith(
       expect.objectContaining({
