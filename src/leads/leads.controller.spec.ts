@@ -1,20 +1,23 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { describe, expect, it, jest } from '@jest/globals';
+
+jest.mock('src/prisma/prisma.service', () => ({
+  PrismaService: class PrismaService {},
+}));
+
 import { LeadsController } from './leads.controller';
-import { LeadsService } from './leads.service';
 
 describe('LeadsController', () => {
-  let controller: LeadsController;
+  const service = {
+    create: jest.fn(),
+    findAll: jest.fn(),
+    findOne: jest.fn(),
+    update: jest.fn(),
+  };
+  const controller = new LeadsController(service as any);
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [LeadsController],
-      providers: [LeadsService],
-    }).compile();
+  it('forwards an update with the string lead ID', () => {
+    controller.update('lead-1', { firstName: 'Jordan' });
 
-    controller = module.get<LeadsController>(LeadsController);
-  });
-
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+    expect(service.update).toHaveBeenCalledWith('lead-1', { firstName: 'Jordan' });
   });
 });

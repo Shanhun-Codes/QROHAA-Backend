@@ -1,20 +1,19 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { describe, expect, it, jest } from '@jest/globals';
+
+jest.mock('src/prisma/prisma.service', () => ({
+  PrismaService: class PrismaService {},
+}));
+
 import { FeedbackSubmissionController } from './feedback-submission.controller';
-import { FeedbackSubmissionService } from './feedback-submission.service';
 
 describe('FeedbackSubmissionController', () => {
-  let controller: FeedbackSubmissionController;
+  const service = { create: jest.fn(), findAll: jest.fn(), findOne: jest.fn() };
+  const controller = new FeedbackSubmissionController(service as any);
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [FeedbackSubmissionController],
-      providers: [FeedbackSubmissionService],
-    }).compile();
+  it('forwards the submission body to the service', () => {
+    const dto = { openHouseId: 'open-house-1', feedbackAnswers: [] };
+    controller.create(dto);
 
-    controller = module.get<FeedbackSubmissionController>(FeedbackSubmissionController);
-  });
-
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+    expect(service.create).toHaveBeenCalledWith(dto);
   });
 });
