@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
-export class CreatePropertyDto {
+export class CreatePropertiesDto {
   @IsString()
   @IsNotEmpty()
   street!: string;

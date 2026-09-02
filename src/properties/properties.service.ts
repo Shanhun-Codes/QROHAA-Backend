@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { CreatePropertyDto } from './dto/create-property.dto';
-import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { CreatePropertiesDto } from './dto/create-properties.dto';
+import { UpdatePropertiesDto } from './dto/update-properties.dto';
 
 @Injectable()
-export class PropertyService {
+export class PropertiesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(createPropertyDto: CreatePropertyDto) {
+  create(createPropertyDto: CreatePropertiesDto) {
     return this.prisma.property.create({
       data: {
         street: createPropertyDto.street,
@@ -30,7 +30,7 @@ export class PropertyService {
     return this.prisma.property.findUnique({ where: { id } });
   }
 
-  update(id: number, updatePropertyDto: UpdatePropertyDto) {
+  update(id: number, updatePropertyDto: UpdatePropertiesDto) {
     return `This action updates a #${id} property`;
   }
 

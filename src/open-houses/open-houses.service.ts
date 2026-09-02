@@ -1,14 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { CreateOpenHouseDto } from './dto/create-open-house.dto';
-import { UpdateOpenHouseDto } from './dto/update-open-house.dto';
+import { CreateOpenHousesDto } from './dto/create-open-houses.dto';
+import { UpdateOpenHouseDto } from './dto/update-open-houses.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { randomBytes } from 'node:crypto';
 
 @Injectable()
-export class OpenHouseService {
+export class OpenHousesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createOpenHouseDto: CreateOpenHouseDto) {
+  async create(createOpenHouseDto: CreateOpenHousesDto) {
     const publicCode = await this.generateUniquePublicCode();
     const selectedQuestions = await this.prisma.agentFeedbackQuestion.findMany({
       where: {

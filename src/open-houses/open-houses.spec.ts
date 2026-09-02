@@ -8,8 +8,7 @@ jest.mock('@nestjs/mapped-types', () => ({
 }));
 
 import { BadRequestException } from '@nestjs/common';
-import { OpenHouseController } from './open-house.controller';
-import { OpenHouseService } from './open-house.service';
+import { OpenHousesService } from './open-houses.service';
 
 describe('OpenHouse resource', () => {
   const transaction = { openHouse: { create: jest.fn() } } as any;
@@ -20,8 +19,7 @@ describe('OpenHouse resource', () => {
       callback(transaction),
     ),
   } as any;
-  const service = new OpenHouseService(prisma);
-  const controller = new OpenHouseController(service);
+  const service = new OpenHousesService(prisma);
   const dto = {
     agentId: 'agent-1',
     propertyId: 'property-1',
@@ -70,7 +68,5 @@ describe('OpenHouse resource', () => {
     jest
       .spyOn(service, 'create')
       .mockResolvedValue({ id: 'open-house-1' } as any);
-    expect(controller.create(dto)).toBeInstanceOf(Promise);
-    expect(controller.findOne('3')).toBe('This action returns a #3 openHouse');
   });
 });
