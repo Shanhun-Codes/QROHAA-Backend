@@ -6,6 +6,7 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { publicLeadForm } from './config/lead-form.config';
 import { SubmitPublicFeedbackDto } from './dto/submit-public-feedback.dto';
+import { PublicSubmissionProtectionService } from './public-submission-protection.service';
 
 const defaultBranding = {
   primaryColor: '#1E3A5F',
@@ -15,7 +16,10 @@ const defaultBranding = {
 
 @Injectable()
 export class PublicService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly submissionProtection: PublicSubmissionProtectionService,
+  ) {}
 
   findPublicAgentBySlug(slug: string) {
     return this.prisma.agent.findUnique({
@@ -141,7 +145,21 @@ export class PublicService {
     slug: string,
     publicCode: string,
     submitFeedbackDto: SubmitPublicFeedbackDto,
+    ipAddress: string,
+    browserToken?: string,
   ) {
+    if (submitFeedbackDto.website) {
+      throw new BadRequestException(
+        'Feedback submission could not be accepted.',
+      );
+    }
+    this.submissionProtection.assertAllowed(
+      slug,
+      publicCode,
+      ipAddress,
+      browserToken,
+    );
+
     const openHouse = await this.prisma.openHouse.findFirst({
       where: { publicCode, agent: { slug } },
       select: {
@@ -164,7 +182,11 @@ export class PublicService {
     });
     if (!openHouse) throw new NotFoundException('Open house not found.');
 
-    const { feedbackAnswers, ...leadData } = submitFeedbackDto;
+    const {
+      feedbackAnswers,
+      website: _website,
+      ...leadData
+    } = submitFeedbackDto;
     const answerQuestionIds = feedbackAnswers.map(
       (answer) => answer.questionId,
     );
@@ -215,24 +237,56 @@ export class PublicService {
       (answer) => answer.questionId === workingWithAgentQuestion?.questionId,
     );
     const createLead = hasContact && workingWithAgentAnswer?.value !== 'YES';
+    const answerFingerprint = JSON.stringify(
+      [...feedbackAnswers]
+        .sort((left, right) => left.questionId.localeCompare(right.questionId))
+        .map(({ questionId, value }) => ({ questionId, value })),
+    );
 
-    return this.prisma
-      .$transaction((transaction) =>
-        transaction.feedbackSubmission.create({
+    const { submission, leadReused } = await this.prisma.$transaction(
+      async (transaction) => {
+        const existingLead = createLead
+          ? await transaction.lead.findFirst({
+              where: {
+                agentId: openHouse.agentId,
+                OR: [
+                  ...(leadData.email ? [{ email: leadData.email }] : []),
+                  ...(leadData.phone ? [{ phone: leadData.phone }] : []),
+                ],
+              },
+              select: { id: true },
+            })
+          : null;
+
+        const submission = await transaction.feedbackSubmission.create({
           data: {
             openHouse: { connect: { id: openHouse.id } },
             feedbackAnswers: { create: feedbackAnswers },
             ...(createLead && {
-              lead: { create: { ...leadData, agentId: openHouse.agentId } },
+              lead: existingLead
+                ? { connect: { id: existingLead.id } }
+                : { create: { ...leadData, agentId: openHouse.agentId } },
             }),
           },
           select: { id: true, leadId: true, createdAt: true },
-        }),
-      )
-      .then((submission) => ({
-        message: 'Feedback submitted successfully.',
-        submissionId: submission.id,
-        leadCreated: Boolean(submission.leadId),
-      }));
+        });
+
+        return { submission, leadReused: Boolean(existingLead) };
+      },
+    );
+
+    this.submissionProtection.recordSuccessfulSubmission(
+      slug,
+      publicCode,
+      ipAddress,
+      browserToken,
+      answerFingerprint,
+    );
+    return {
+      message: 'Feedback submitted successfully.',
+      submissionId: submission.id,
+      leadCreated: Boolean(submission.leadId),
+      leadReused,
+    };
   }
 }

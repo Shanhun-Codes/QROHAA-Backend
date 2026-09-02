@@ -27,6 +27,10 @@ export class SubmitPublicFeedbackDto {
   @IsPhoneNumber('US')
   phone?: string;
 
+  @IsOptional()
+  @IsString()
+  website?: string;
+
   @IsArray()
   @ArrayNotEmpty()
   @ValidateNested({ each: true })
