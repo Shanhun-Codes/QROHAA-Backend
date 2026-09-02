@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { PublicService } from './public.service';
+import { SubmitPublicFeedbackDto } from './dto/submit-public-feedback.dto';
 
 @Controller('public')
 export class PublicController {
@@ -20,8 +21,12 @@ export class PublicController {
     return this.publicService.getConfigurationData(slug, publicCode);
   }
 
-  @Post('/agents/:slug/open-house/:publicCode/feedback-submission')
-  submitFeedback(@Param('slug') slug: string, @Param('publicCode') publicCode: string, @Body() createFeedbackSubmissionDto: any) {
-    return this.publicService.submitFeedback(slug, publicCode, createFeedbackSubmissionDto);
-}
+  @Post('agents/:slug/open-houses/:publicCode/feedback')
+  submitFeedback(
+    @Param('slug') slug: string,
+    @Param('publicCode') publicCode: string,
+    @Body() submitFeedbackDto: SubmitPublicFeedbackDto,
+  ) {
+    return this.publicService.submitFeedback(slug, publicCode, submitFeedbackDto);
+  }
 }

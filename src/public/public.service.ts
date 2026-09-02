@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { CreateFeedbackSubmissionDto } from 'src/feedback-submission/dto/create-feedback-submission.dto';
-import { FeedbackSubmissionService } from 'src/feedback-submission/feedback-submission.service';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { publicLeadForm } from './config/lead-form.config';
+import { SubmitPublicFeedbackDto } from './dto/submit-public-feedback.dto';
 
 const defaultBranding = {
   primaryColor: '#1E3A5F',
@@ -11,10 +11,7 @@ const defaultBranding = {
 
 @Injectable()
 export class PublicService {
-  constructor(
-    private prisma: PrismaService,
-    public feedbackSubmissionService: FeedbackSubmissionService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   findPublicAgentBySlug(slug: string) {
     return this.prisma.agent.findUnique({
@@ -119,6 +116,7 @@ export class PublicService {
         endsAt: openHouseData.endsAt,
       },
       property: openHouseData?.property ?? null,
+      leadForm: publicLeadForm,
       feedbackForm: {
         questions:
           openHouseData?.openHouseFeedbackQuestions.map((selection) => ({
@@ -135,29 +133,87 @@ export class PublicService {
     };
   }
 
-  async submitFeedback(slug: string, publicCode: string, createFeedbackSubmissionDto: CreateFeedbackSubmissionDto) {
-    const verifyOpenHouse = await this.prisma.openHouse.findFirst({
+  async submitFeedback(
+    slug: string,
+    publicCode: string,
+    submitFeedbackDto: SubmitPublicFeedbackDto,
+  ) {
+    const openHouse = await this.prisma.openHouse.findFirst({
       where: { publicCode, agent: { slug } },
+      select: {
+        id: true,
+        agentId: true,
+        openHouseFeedbackQuestions: {
+          select: {
+            required: true,
+            questionId: true,
+            question: {
+              select: {
+                key: true,
+                type: true,
+                options: { select: { value: true } },
+              },
+            },
+          },
+        },
+      },
     });
-    if (!verifyOpenHouse) {
-      throw new Error(
-        'Open house not found or not associated with the specified agent.',
-      );
+    if (!openHouse) throw new NotFoundException('Open house not found.');
+
+    const { feedbackAnswers, ...leadData } = submitFeedbackDto;
+    const answerQuestionIds = feedbackAnswers.map((answer) => answer.questionId);
+    if (new Set(answerQuestionIds).size !== answerQuestionIds.length) {
+      throw new BadRequestException('Each question may only be answered once.');
     }
 
-    const verifyAgent = await this.prisma.agent.findUnique({
-      where: { slug },
-    });
-    if (!verifyAgent) {
-      throw new Error('Agent not found.');
+    const configuredQuestions = new Map(
+      openHouse.openHouseFeedbackQuestions.map((selection) => [selection.questionId, selection]),
+    );
+    const missingRequiredQuestion = openHouse.openHouseFeedbackQuestions.find(
+      (selection) => selection.required && !answerQuestionIds.includes(selection.questionId),
+    );
+    if (missingRequiredQuestion) {
+      throw new BadRequestException('A required feedback question is missing.');
     }
 
-    const verifiedSubmission = verifyOpenHouse && verifyAgent;
-    if (verifiedSubmission) {
-      const createSubmission = await this.feedbackSubmissionService.create(
-        createFeedbackSubmissionDto,
-      );
-      return { message: 'Feedback submission verified successfully.' };
+    for (const answer of feedbackAnswers) {
+      const configuredQuestion = configuredQuestions.get(answer.questionId);
+      if (!configuredQuestion) {
+        throw new BadRequestException('An answer references a question not assigned to this open house.');
+      }
+      if (configuredQuestion.question.options.length) {
+        const validValues = configuredQuestion.question.options.map((option) => option.value);
+        if (!validValues.includes(answer.value)) {
+          throw new BadRequestException('An answer contains an invalid option value.');
+        }
+      }
     }
+
+    const hasName = Boolean(leadData.firstName?.trim() || leadData.lastName?.trim());
+    const hasContact = Boolean(leadData.email?.trim() || leadData.phone?.trim());
+    const workingWithAgentQuestion = openHouse.openHouseFeedbackQuestions.find(
+      (selection) => selection.question.key === 'working_with_agent',
+    );
+    const workingWithAgentAnswer = feedbackAnswers.find(
+      (answer) => answer.questionId === workingWithAgentQuestion?.questionId,
+    );
+    const createLead = hasName && hasContact && workingWithAgentAnswer?.value !== 'YES';
+
+    return this.prisma.$transaction((transaction) =>
+      transaction.feedbackSubmission.create({
+        data: {
+          openHouse: { connect: { id: openHouse.id } },
+          feedbackAnswers: { create: feedbackAnswers },
+          ...(createLead && {
+            lead: { create: { ...leadData, agentId: openHouse.agentId } },
+          }),
+        },
+        select: { id: true, leadId: true, createdAt: true },
+      }),
+    ).then((submission) => ({
+      message: 'Feedback submitted successfully.',
+      submissionId: submission.id,
+      leadCreated: Boolean(submission.leadId),
+    }));
   }
 }

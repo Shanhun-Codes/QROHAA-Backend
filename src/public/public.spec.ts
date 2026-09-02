@@ -6,7 +6,12 @@ import { PublicController } from './public.controller';
 import { PublicService } from './public.service';
 
 describe('Public resource', () => {
-  const prisma = { agent: { findUnique: jest.fn() }, openHouse: { findUnique: jest.fn(), findFirst: jest.fn() } } as any;
+  const transaction = { feedbackSubmission: { create: jest.fn() } } as any;
+  const prisma = {
+    agent: { findUnique: jest.fn() },
+    openHouse: { findUnique: jest.fn(), findFirst: jest.fn() },
+    $transaction: jest.fn((callback: (client: typeof transaction) => unknown) => callback(transaction)),
+  } as any;
   const service = new PublicService(prisma);
   const controller = new PublicController(service);
 
@@ -37,5 +42,54 @@ describe('Public resource', () => {
     expect(controller.findAgent('michael-elder')).toEqual({});
     expect(controller.findOpenHouseByPublicCode('CODE1234')).toEqual({});
     expect(controller.getConfigurationData('michael-elder', 'CODE1234')).toBeInstanceOf(Promise);
+  });
+
+  it('creates a lead and linked submission from public contact and feedback data', async () => {
+    prisma.openHouse.findFirst.mockResolvedValue({
+      id: 'open-house-1',
+      agentId: 'agent-1',
+      openHouseFeedbackQuestions: [{
+        required: false,
+        questionId: 'question-1',
+        question: { key: 'overall_appeal_rating', type: 'RATING', options: [{ value: '4' }] },
+      }],
+    });
+    transaction.feedbackSubmission.create.mockResolvedValue({ id: 'submission-1', leadId: 'lead-1' });
+
+    await expect(service.submitFeedback('michael-elder', 'CODE1234', {
+      firstName: 'Jordan',
+      email: 'jordan@example.com',
+      feedbackAnswers: [{ questionId: 'question-1', value: '4' }],
+    })).resolves.toMatchObject({ message: 'Feedback submitted successfully.', leadCreated: true });
+
+    expect(transaction.feedbackSubmission.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        openHouse: { connect: { id: 'open-house-1' } },
+        lead: { create: { firstName: 'Jordan', email: 'jordan@example.com', agentId: 'agent-1' } },
+      }),
+    }));
+  });
+
+  it('keeps feedback but does not create a lead for visitors working with an agent', async () => {
+    prisma.openHouse.findFirst.mockResolvedValue({
+      id: 'open-house-1',
+      agentId: 'agent-1',
+      openHouseFeedbackQuestions: [{
+        required: false,
+        questionId: 'question-1',
+        question: { key: 'working_with_agent', type: 'SINGLE_SELECT', options: [{ value: 'YES' }, { value: 'NO' }] },
+      }],
+    });
+    transaction.feedbackSubmission.create.mockResolvedValue({ id: 'submission-1', leadId: null });
+
+    await expect(service.submitFeedback('michael-elder', 'CODE1234', {
+      firstName: 'Jordan',
+      email: 'jordan@example.com',
+      feedbackAnswers: [{ questionId: 'question-1', value: 'YES' }],
+    })).resolves.toMatchObject({ leadCreated: false });
+
+    expect(transaction.feedbackSubmission.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.not.objectContaining({ lead: expect.anything() }),
+    }));
   });
 });
