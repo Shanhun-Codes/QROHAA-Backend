@@ -1,6 +1,6 @@
 import { IsDateString, IsNotEmpty, IsString } from 'class-validator';
 
-export class CreateOpenHouseDto {
+export class CreateOpenHousesDto {
   @IsString()
   @IsNotEmpty()
   agentId!: string;

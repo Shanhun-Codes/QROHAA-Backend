@@ -17,31 +17,26 @@ export class FeedbackQuestionsController {
     private readonly feedbackQuestionsService: FeedbackQuestionsService,
   ) {}
 
-  @Post()
-  create(@Body() createFeedbackQuestionDto: CreateFeedbackQuestionDto) {
-    return this.feedbackQuestionsService.create(createFeedbackQuestionDto);
-  }
+  // @Get()
+  // findAll() {
+  //   return this.feedbackQuestionsService.findAll();
+  // }
 
-  @Get()
-  findAll() {
-    return this.feedbackQuestionsService.findAll();
-  }
+  // @Get(':id')
+  // findOne(@Param('id') id: string) {
+  //   return this.feedbackQuestionsService.findOne(id);
+  // }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.feedbackQuestionsService.findOne(id);
-  }
+  // @Patch(':id')
+  // update(
+  //   @Param('id') id: string,
+  //   @Body() updateFeedbackQuestionDto: UpdateFeedbackQuestionDto,
+  // ) {
+  //   return this.feedbackQuestionsService.update(id, updateFeedbackQuestionDto);
+  // }
 
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateFeedbackQuestionDto: UpdateFeedbackQuestionDto,
-  ) {
-    return this.feedbackQuestionsService.update(id, updateFeedbackQuestionDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.feedbackQuestionsService.remove(id);
-  }
+  // @Delete(':id')
+  // remove(@Param('id') id: string) {
+  //   return this.feedbackQuestionsService.remove(id);
+  // }
 }

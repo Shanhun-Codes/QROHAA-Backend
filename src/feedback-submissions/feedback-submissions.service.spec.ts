@@ -4,7 +4,7 @@ jest.mock('src/prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
 }));
 
-import { FeedbackSubmissionService } from './feedback-submission.service';
+import { FeedbackSubmissionService } from './feedback-submissions.service';
 
 describe('FeedbackSubmissionService', () => {
   const prisma = {

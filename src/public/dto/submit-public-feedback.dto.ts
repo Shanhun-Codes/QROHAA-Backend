@@ -8,7 +8,7 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
-import { CreateFeedbackAnswerDto } from 'src/feedback-submission/dto/create-feedback-answer.dto';
+import { CreateFeedbackAnswerDto } from 'src/feedback-submissions/dto/create-feedback-answer.dto';
 
 export class SubmitPublicFeedbackDto {
   @IsOptional()
@@ -26,6 +26,10 @@ export class SubmitPublicFeedbackDto {
   @IsOptional()
   @IsPhoneNumber('US')
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  website?: string;
 
   @IsArray()
   @ArrayNotEmpty()
