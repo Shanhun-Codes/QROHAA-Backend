@@ -27,14 +27,6 @@ export class FeedbackQuestionsController {
   //   return this.feedbackQuestionsService.findOne(id);
   // }
 
-  // @Patch(':id')
-  // update(
-  //   @Param('id') id: string,
-  //   @Body() updateFeedbackQuestionDto: UpdateFeedbackQuestionDto,
-  // ) {
-  //   return this.feedbackQuestionsService.update(id, updateFeedbackQuestionDto);
-  // }
-
   // @Delete(':id')
   // remove(@Param('id') id: string) {
   //   return this.feedbackQuestionsService.remove(id);
