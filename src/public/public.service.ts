@@ -39,7 +39,9 @@ export class PublicService {
   }
 
   findOpenHouseByPublicCode(publicCode: string) {
-    return this.prisma.openHouse.findUnique({ where: { publicCode } });
+    return this.prisma.openHouse.findUnique({
+      where: { publicCode },
+    });
   }
 
   async getConfigurationData(slug: string, publicCode: string) {
@@ -62,7 +64,12 @@ export class PublicService {
     });
 
     const openHouseData = await this.prisma.openHouse.findFirst({
-      where: { publicCode, agent: { slug } },
+      where: {
+        publicCode,
+        agent: {
+          slug,
+        },
+      },
       select: {
         publicCode: true,
         startsAt: true,
@@ -78,8 +85,14 @@ export class PublicService {
           },
         },
         openHouseFeedbackQuestions: {
-          where: { question: { active: true } },
-          orderBy: { sortOrder: 'asc' },
+          where: {
+            question: {
+              active: true,
+            },
+          },
+          orderBy: {
+            sortOrder: 'asc',
+          },
           select: {
             required: true,
             sortOrder: true,
@@ -91,7 +104,9 @@ export class PublicService {
                 type: true,
                 category: true,
                 options: {
-                  orderBy: { sortOrder: 'asc' },
+                  orderBy: {
+                    sortOrder: 'asc',
+                  },
                   select: {
                     label: true,
                     value: true,
@@ -167,7 +182,12 @@ export class PublicService {
     );
 
     const openHouse = await this.prisma.openHouse.findFirst({
-      where: { publicCode, agent: { slug } },
+      where: {
+        publicCode,
+        agent: {
+          slug,
+        },
+      },
       select: {
         id: true,
         agentId: true,
@@ -267,7 +287,8 @@ export class PublicService {
       (answer) => answer.questionId === workingWithAgentQuestion?.questionId,
     );
 
-    const createLead = hasContact && workingWithAgentAnswer?.value !== 'YES';
+    const shouldCreateNewLead =
+      hasContact && workingWithAgentAnswer?.value !== 'YES';
 
     const answerFingerprint = JSON.stringify(
       [...feedbackAnswers]
@@ -280,7 +301,7 @@ export class PublicService {
 
     const { submission, leadAction } = await this.prisma.$transaction(
       async (transaction) => {
-        const existingLead = createLead
+        const existingLead = hasContact
           ? await transaction.lead.findFirst({
               where: {
                 agentId: openHouse.agentId,
@@ -295,9 +316,29 @@ export class PublicService {
               },
               select: {
                 id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
               },
             })
           : null;
+
+        if (existingLead) {
+          await transaction.lead.update({
+            where: {
+              id: existingLead.id,
+            },
+            data: {
+              firstName: existingLead.firstName ?? normalizedLeadData.firstName,
+              lastName: existingLead.lastName ?? normalizedLeadData.lastName,
+              email: existingLead.email ?? normalizedLeadData.email,
+              phone: existingLead.phone ?? normalizedLeadData.phone,
+            },
+          });
+        }
+
+        const shouldAttachLead = Boolean(existingLead) || shouldCreateNewLead;
 
         const submission = await transaction.feedbackSubmission.create({
           data: {
@@ -309,7 +350,7 @@ export class PublicService {
             feedbackAnswers: {
               create: feedbackAnswers,
             },
-            ...(createLead && {
+            ...(shouldAttachLead && {
               lead: existingLead
                 ? {
                     connect: {
@@ -335,7 +376,7 @@ export class PublicService {
           submission,
           leadAction: existingLead
             ? 'LEAD_CONTACT_FOUND_AND_REUSED'
-            : createLead
+            : shouldCreateNewLead
               ? 'LEAD_CREATED'
               : 'NO_LEAD_CREATED',
         };
