@@ -92,7 +92,11 @@ export class PublicService {
                 category: true,
                 options: {
                   orderBy: { sortOrder: 'asc' },
-                  select: { label: true, value: true, sortOrder: true },
+                  select: {
+                    label: true,
+                    value: true,
+                    sortOrder: true,
+                  },
                 },
               },
             },
@@ -100,6 +104,7 @@ export class PublicService {
         },
       },
     });
+
     return {
       agent: agentData && {
         slug: agentData.slug,
@@ -153,6 +158,7 @@ export class PublicService {
         'Feedback submission could not be accepted.',
       );
     }
+
     this.submissionProtection.assertAllowed(
       slug,
       publicCode,
@@ -173,23 +179,40 @@ export class PublicService {
               select: {
                 key: true,
                 type: true,
-                options: { select: { value: true } },
+                options: {
+                  select: {
+                    value: true,
+                  },
+                },
               },
             },
           },
         },
       },
     });
-    if (!openHouse) throw new NotFoundException('Open house not found.');
+
+    if (!openHouse) {
+      throw new NotFoundException('Open house not found.');
+    }
 
     const {
       feedbackAnswers,
       website: _website,
       ...leadData
     } = submitFeedbackDto;
+
+    const normalizedLeadData = {
+      ...leadData,
+      firstName: leadData.firstName?.trim() || null,
+      lastName: leadData.lastName?.trim() || null,
+      email: leadData.email?.trim().toLowerCase() || null,
+      phone: this.normalizePhone(leadData.phone),
+    };
+
     const answerQuestionIds = feedbackAnswers.map(
       (answer) => answer.questionId,
     );
+
     if (new Set(answerQuestionIds).size !== answerQuestionIds.length) {
       throw new BadRequestException('Each question may only be answered once.');
     }
@@ -200,25 +223,30 @@ export class PublicService {
         selection,
       ]),
     );
+
     const missingRequiredQuestion = openHouse.openHouseFeedbackQuestions.find(
       (selection) =>
         selection.required && !answerQuestionIds.includes(selection.questionId),
     );
+
     if (missingRequiredQuestion) {
       throw new BadRequestException('A required feedback question is missing.');
     }
 
     for (const answer of feedbackAnswers) {
       const configuredQuestion = configuredQuestions.get(answer.questionId);
+
       if (!configuredQuestion) {
         throw new BadRequestException(
           'An answer references a question not assigned to this open house.',
         );
       }
+
       if (configuredQuestion.question.options.length) {
         const validValues = configuredQuestion.question.options.map(
           (option) => option.value,
         );
+
         if (!validValues.includes(answer.value)) {
           throw new BadRequestException(
             'An answer contains an invalid option value.',
@@ -228,19 +256,26 @@ export class PublicService {
     }
 
     const hasContact = Boolean(
-      leadData.email?.trim() || leadData.phone?.trim(),
+      normalizedLeadData.email || normalizedLeadData.phone,
     );
+
     const workingWithAgentQuestion = openHouse.openHouseFeedbackQuestions.find(
       (selection) => selection.question.key === 'working_with_agent',
     );
+
     const workingWithAgentAnswer = feedbackAnswers.find(
       (answer) => answer.questionId === workingWithAgentQuestion?.questionId,
     );
+
     const createLead = hasContact && workingWithAgentAnswer?.value !== 'YES';
+
     const answerFingerprint = JSON.stringify(
       [...feedbackAnswers]
         .sort((left, right) => left.questionId.localeCompare(right.questionId))
-        .map(({ questionId, value }) => ({ questionId, value })),
+        .map(({ questionId, value }) => ({
+          questionId,
+          value,
+        })),
     );
 
     const { submission, leadAction } = await this.prisma.$transaction(
@@ -250,25 +285,50 @@ export class PublicService {
               where: {
                 agentId: openHouse.agentId,
                 OR: [
-                  ...(leadData.email ? [{ email: leadData.email }] : []),
-                  ...(leadData.phone ? [{ phone: leadData.phone }] : []),
+                  ...(normalizedLeadData.email
+                    ? [{ email: normalizedLeadData.email }]
+                    : []),
+                  ...(normalizedLeadData.phone
+                    ? [{ phone: normalizedLeadData.phone }]
+                    : []),
                 ],
               },
-              select: { id: true },
+              select: {
+                id: true,
+              },
             })
           : null;
 
         const submission = await transaction.feedbackSubmission.create({
           data: {
-            openHouse: { connect: { id: openHouse.id } },
-            feedbackAnswers: { create: feedbackAnswers },
+            openHouse: {
+              connect: {
+                id: openHouse.id,
+              },
+            },
+            feedbackAnswers: {
+              create: feedbackAnswers,
+            },
             ...(createLead && {
               lead: existingLead
-                ? { connect: { id: existingLead.id } }
-                : { create: { ...leadData, agentId: openHouse.agentId } },
+                ? {
+                    connect: {
+                      id: existingLead.id,
+                    },
+                  }
+                : {
+                    create: {
+                      ...normalizedLeadData,
+                      agentId: openHouse.agentId,
+                    },
+                  },
             }),
           },
-          select: { id: true, leadId: true, createdAt: true },
+          select: {
+            id: true,
+            leadId: true,
+            createdAt: true,
+          },
         });
 
         return {
@@ -289,10 +349,25 @@ export class PublicService {
       browserToken,
       answerFingerprint,
     );
+
     return {
       message: 'Feedback submitted successfully.',
       submissionId: submission.id,
       leadAction,
     };
+  }
+
+  private normalizePhone(phone?: string | null): string | null {
+    if (!phone) {
+      return null;
+    }
+
+    let digits = phone.trim().replace(/\D/g, '');
+
+    if (digits.length === 11 && digits.startsWith('1')) {
+      digits = digits.slice(1);
+    }
+
+    return digits || null;
   }
 }
