@@ -19,12 +19,12 @@ export class LeadsController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.leadsService.findOne(+id);
+    return this.leadsService.findOne(id);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateLeadDto: UpdateLeadDto) {
-    return this.leadsService.update(+id, updateLeadDto);
+    return this.leadsService.update(id, updateLeadDto);
   }
 
   @Delete(':id')

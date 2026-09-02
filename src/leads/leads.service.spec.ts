@@ -1,18 +1,37 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { describe, expect, it, jest } from '@jest/globals';
+import { NotFoundException } from '@nestjs/common';
+
+jest.mock('src/prisma/prisma.service', () => ({
+  PrismaService: class PrismaService {},
+}));
+
 import { LeadsService } from './leads.service';
 
 describe('LeadsService', () => {
-  let service: LeadsService;
+  const prisma = {
+    lead: { findUnique: jest.fn(), update: jest.fn() },
+  } as any;
+  const service = new LeadsService(prisma);
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [LeadsService],
-    }).compile();
+  it('updates a lead by its string ID', async () => {
+    prisma.lead.findUnique.mockResolvedValue({ id: 'lead-1' });
+    prisma.lead.update.mockResolvedValue({ id: 'lead-1', status: 'CONTACTED' });
 
-    service = module.get<LeadsService>(LeadsService);
+    await expect(service.update('lead-1', { firstName: 'Jordan' })).resolves.toEqual({
+      id: 'lead-1',
+      status: 'CONTACTED',
+    });
+    expect(prisma.lead.update).toHaveBeenCalledWith({
+      where: { id: 'lead-1' },
+      data: { firstName: 'Jordan' },
+    });
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  it('rejects updates for unknown leads', async () => {
+    prisma.lead.findUnique.mockResolvedValue(null);
+
+    await expect(service.update('missing', { lastName: 'Lee' })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
