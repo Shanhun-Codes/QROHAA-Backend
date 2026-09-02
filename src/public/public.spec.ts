@@ -92,4 +92,28 @@ describe('Public resource', () => {
       data: expect.not.objectContaining({ lead: expect.anything() }),
     }));
   });
+
+  it('creates a lead from contact information without a name', async () => {
+    prisma.openHouse.findFirst.mockResolvedValue({
+      id: 'open-house-1',
+      agentId: 'agent-1',
+      openHouseFeedbackQuestions: [{
+        required: false,
+        questionId: 'question-1',
+        question: { key: 'overall_appeal_rating', type: 'RATING', options: [{ value: '4' }] },
+      }],
+    });
+    transaction.feedbackSubmission.create.mockResolvedValue({ id: 'submission-1', leadId: 'lead-1' });
+
+    await service.submitFeedback('michael-elder', 'CODE1234', {
+      email: 'jordan@example.com',
+      feedbackAnswers: [{ questionId: 'question-1', value: '4' }],
+    });
+
+    expect(transaction.feedbackSubmission.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        lead: { create: { email: 'jordan@example.com', agentId: 'agent-1' } },
+      }),
+    }));
+  });
 });

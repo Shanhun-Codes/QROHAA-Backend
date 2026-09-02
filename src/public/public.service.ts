@@ -189,7 +189,6 @@ export class PublicService {
       }
     }
 
-    const hasName = Boolean(leadData.firstName?.trim() || leadData.lastName?.trim());
     const hasContact = Boolean(leadData.email?.trim() || leadData.phone?.trim());
     const workingWithAgentQuestion = openHouse.openHouseFeedbackQuestions.find(
       (selection) => selection.question.key === 'working_with_agent',
@@ -197,7 +196,7 @@ export class PublicService {
     const workingWithAgentAnswer = feedbackAnswers.find(
       (answer) => answer.questionId === workingWithAgentQuestion?.questionId,
     );
-    const createLead = hasName && hasContact && workingWithAgentAnswer?.value !== 'YES';
+    const createLead = hasContact && workingWithAgentAnswer?.value !== 'YES';
 
     return this.prisma.$transaction((transaction) =>
       transaction.feedbackSubmission.create({
