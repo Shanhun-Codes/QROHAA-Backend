@@ -10,7 +10,10 @@ export class FeedbackQuestionsService {
   create(createFeedbackQuestionDto: CreateFeedbackQuestionDto) {
     const { options, ...question } = createFeedbackQuestionDto;
     return this.prisma.feedbackQuestion.create({
-      data: { ...question, options: options ? { createMany: { data: options } } : undefined },
+      data: {
+        ...question,
+        options: options ? { createMany: { data: options } } : undefined,
+      },
       include: { options: { orderBy: { sortOrder: 'asc' } } },
     });
   }
@@ -27,18 +30,28 @@ export class FeedbackQuestionsService {
       where: { id },
       include: { options: { orderBy: { sortOrder: 'asc' } } },
     });
-    if (!question) throw new NotFoundException(`Feedback question ${id} was not found.`);
+    if (!question)
+      throw new NotFoundException(`Feedback question ${id} was not found.`);
     return question;
   }
 
-  async update(id: string, updateFeedbackQuestionDto: UpdateFeedbackQuestionDto) {
+  async update(
+    id: string,
+    updateFeedbackQuestionDto: UpdateFeedbackQuestionDto,
+  ) {
     await this.findOne(id);
     const { options, ...question } = updateFeedbackQuestionDto;
     return this.prisma.$transaction(async (transaction) => {
-      if (options) await transaction.feedbackQuestionOption.deleteMany({ where: { questionId: id } });
+      if (options)
+        await transaction.feedbackQuestionOption.deleteMany({
+          where: { questionId: id },
+        });
       return transaction.feedbackQuestion.update({
         where: { id },
-        data: { ...question, options: options ? { createMany: { data: options } } : undefined },
+        data: {
+          ...question,
+          options: options ? { createMany: { data: options } } : undefined,
+        },
         include: { options: { orderBy: { sortOrder: 'asc' } } },
       });
     });

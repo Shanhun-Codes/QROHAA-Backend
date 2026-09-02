@@ -1,5 +1,11 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsInt, IsString, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 
 export class AgentFeedbackQuestionSelectionDto {
   @IsString()

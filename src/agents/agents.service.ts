@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -66,28 +70,44 @@ export class AgentsService {
     return this.prisma.agentFeedbackQuestion.findMany({
       where: { agentId, question: { active: true } },
       orderBy: { sortOrder: 'asc' },
-      include: { question: { include: { options: { orderBy: { sortOrder: 'asc' } } } } },
+      include: {
+        question: { include: { options: { orderBy: { sortOrder: 'asc' } } } },
+      },
     });
   }
 
-  async replaceFeedbackQuestions(agentId: string, selections: AgentFeedbackQuestionSelectionDto[]) {
+  async replaceFeedbackQuestions(
+    agentId: string,
+    selections: AgentFeedbackQuestionSelectionDto[],
+  ) {
     await this.ensureAgentExists(agentId);
     const questionIds = selections.map((selection) => selection.questionId);
     const sortOrders = selections.map((selection) => selection.sortOrder);
     if (new Set(questionIds).size !== questionIds.length) {
-      throw new BadRequestException('Each feedback question may only be selected once.');
+      throw new BadRequestException(
+        'Each feedback question may only be selected once.',
+      );
     }
-    if (new Set(sortOrders).size !== sortOrders.length || sortOrders.some((sortOrder) => sortOrder < 0)) {
-      throw new BadRequestException('Sort orders must be unique non-negative integers.');
+    if (
+      new Set(sortOrders).size !== sortOrders.length ||
+      sortOrders.some((sortOrder) => sortOrder < 0)
+    ) {
+      throw new BadRequestException(
+        'Sort orders must be unique non-negative integers.',
+      );
     }
     const activeQuestionCount = await this.prisma.feedbackQuestion.count({
       where: { id: { in: questionIds }, active: true },
     });
     if (activeQuestionCount !== questionIds.length) {
-      throw new BadRequestException('Every selected feedback question must exist and be active.');
+      throw new BadRequestException(
+        'Every selected feedback question must exist and be active.',
+      );
     }
     return this.prisma.$transaction(async (transaction) => {
-      await transaction.agentFeedbackQuestion.deleteMany({ where: { agentId } });
+      await transaction.agentFeedbackQuestion.deleteMany({
+        where: { agentId },
+      });
       if (selections.length) {
         await transaction.agentFeedbackQuestion.createMany({
           data: selections.map((selection) => ({ agentId, ...selection })),
@@ -96,13 +116,33 @@ export class AgentsService {
       return transaction.agentFeedbackQuestion.findMany({
         where: { agentId },
         orderBy: { sortOrder: 'asc' },
-        include: { question: { include: { options: { orderBy: { sortOrder: 'asc' } } } } },
+        include: {
+          question: { include: { options: { orderBy: { sortOrder: 'asc' } } } },
+        },
       });
     });
   }
 
-  update(id: number, updateAgentDto: UpdateAgentDto) {
-    return `This action updates a #${id} agent`;
+  async update(id: string, updateAgentDto: UpdateAgentDto) {
+    await this.ensureAgentExists(id);
+    const { primaryColor, secondaryColor, accentColor, ...agentData } =
+      updateAgentDto;
+
+    return this.prisma.agent.update({
+      where: { id },
+      data: {
+        ...agentData,
+        ...(primaryColor !== undefined && {
+          primaryColor: this.normalizeHexColor(primaryColor),
+        }),
+        ...(secondaryColor !== undefined && {
+          secondaryColor: this.normalizeHexColor(secondaryColor),
+        }),
+        ...(accentColor !== undefined && {
+          accentColor: this.normalizeHexColor(accentColor),
+        }),
+      },
+    });
   }
 
   remove(id: number) {
@@ -135,7 +175,9 @@ export class AgentsService {
   }
 
   private async ensureAgentExists(agentId: string) {
-    const agent = await this.prisma.agent.findUnique({ where: { id: agentId } });
+    const agent = await this.prisma.agent.findUnique({
+      where: { id: agentId },
+    });
     if (!agent) throw new NotFoundException(`Agent ${agentId} was not found.`);
   }
 
