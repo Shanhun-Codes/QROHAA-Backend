@@ -16,8 +16,11 @@ export class PublicController {
     return this.publicService.findOpenHouseByPublicCode(publicCode);
   }
 
-  @Get('/agents/:slug/open-houses/:publicCode/configuration') 
-  getConfigurationData(@Param('slug') slug: string, @Param('publicCode') publicCode: string) {
+  @Get('/agents/:slug/open-houses/:publicCode/configuration')
+  getConfigurationData(
+    @Param('slug') slug: string,
+    @Param('publicCode') publicCode: string,
+  ) {
     return this.publicService.getConfigurationData(slug, publicCode);
   }
 
@@ -27,6 +30,10 @@ export class PublicController {
     @Param('publicCode') publicCode: string,
     @Body() submitFeedbackDto: SubmitPublicFeedbackDto,
   ) {
-    return this.publicService.submitFeedback(slug, publicCode, submitFeedbackDto);
+    return this.publicService.submitFeedback(
+      slug,
+      publicCode,
+      submitFeedbackDto,
+    );
   }
 }

@@ -18,6 +18,8 @@ describe('LeadsController', () => {
   it('forwards an update with the string lead ID', () => {
     controller.update('lead-1', { firstName: 'Jordan' });
 
-    expect(service.update).toHaveBeenCalledWith('lead-1', { firstName: 'Jordan' });
+    expect(service.update).toHaveBeenCalledWith('lead-1', {
+      firstName: 'Jordan',
+    });
   });
 });

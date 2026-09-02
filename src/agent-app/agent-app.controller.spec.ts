@@ -13,6 +13,8 @@ describe('AgentAppController', () => {
 
     controller.findLeads();
 
-    expect(leadsService.findAllLeadsWithSelectedFeedback).toHaveBeenCalledTimes(1);
+    expect(leadsService.findAllLeadsWithSelectedFeedback).toHaveBeenCalledTimes(
+      1,
+    );
   });
 });

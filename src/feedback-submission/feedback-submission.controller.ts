@@ -1,10 +1,20 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { FeedbackSubmissionService } from './feedback-submission.service';
 import { CreateFeedbackSubmissionDto } from './dto/create-feedback-submission.dto';
 
 @Controller('feedback-submission')
 export class FeedbackSubmissionController {
-  constructor(private readonly feedbackSubmissionService: FeedbackSubmissionService) {}
+  constructor(
+    private readonly feedbackSubmissionService: FeedbackSubmissionService,
+  ) {}
 
   @Post()
   create(@Body() createFeedbackSubmissionDto: CreateFeedbackSubmissionDto) {

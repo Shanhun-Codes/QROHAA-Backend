@@ -19,7 +19,12 @@ describe('FeedbackSubmissionService', () => {
         feedbackAnswers: [
           {
             value: '4',
-            question: { id: 'question-1', key: 'overall_rating', label: 'Overall Appeal', type: 'RATING' },
+            question: {
+              id: 'question-1',
+              key: 'overall_rating',
+              label: 'Overall Appeal',
+              type: 'RATING',
+            },
           },
         ],
       },
@@ -29,7 +34,13 @@ describe('FeedbackSubmissionService', () => {
       {
         id: 'submission-1',
         questions: [
-          { id: 'question-1', key: 'overall_rating', label: 'Overall Appeal', type: 'RATING', answer: '4' },
+          {
+            id: 'question-1',
+            key: 'overall_rating',
+            label: 'Overall Appeal',
+            type: 'RATING',
+            answer: '4',
+          },
         ],
       },
     ]);

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { publicLeadForm } from './config/lead-form.config';
 import { SubmitPublicFeedbackDto } from './dto/submit-public-feedback.dto';
@@ -161,16 +165,22 @@ export class PublicService {
     if (!openHouse) throw new NotFoundException('Open house not found.');
 
     const { feedbackAnswers, ...leadData } = submitFeedbackDto;
-    const answerQuestionIds = feedbackAnswers.map((answer) => answer.questionId);
+    const answerQuestionIds = feedbackAnswers.map(
+      (answer) => answer.questionId,
+    );
     if (new Set(answerQuestionIds).size !== answerQuestionIds.length) {
       throw new BadRequestException('Each question may only be answered once.');
     }
 
     const configuredQuestions = new Map(
-      openHouse.openHouseFeedbackQuestions.map((selection) => [selection.questionId, selection]),
+      openHouse.openHouseFeedbackQuestions.map((selection) => [
+        selection.questionId,
+        selection,
+      ]),
     );
     const missingRequiredQuestion = openHouse.openHouseFeedbackQuestions.find(
-      (selection) => selection.required && !answerQuestionIds.includes(selection.questionId),
+      (selection) =>
+        selection.required && !answerQuestionIds.includes(selection.questionId),
     );
     if (missingRequiredQuestion) {
       throw new BadRequestException('A required feedback question is missing.');
@@ -179,17 +189,25 @@ export class PublicService {
     for (const answer of feedbackAnswers) {
       const configuredQuestion = configuredQuestions.get(answer.questionId);
       if (!configuredQuestion) {
-        throw new BadRequestException('An answer references a question not assigned to this open house.');
+        throw new BadRequestException(
+          'An answer references a question not assigned to this open house.',
+        );
       }
       if (configuredQuestion.question.options.length) {
-        const validValues = configuredQuestion.question.options.map((option) => option.value);
+        const validValues = configuredQuestion.question.options.map(
+          (option) => option.value,
+        );
         if (!validValues.includes(answer.value)) {
-          throw new BadRequestException('An answer contains an invalid option value.');
+          throw new BadRequestException(
+            'An answer contains an invalid option value.',
+          );
         }
       }
     }
 
-    const hasContact = Boolean(leadData.email?.trim() || leadData.phone?.trim());
+    const hasContact = Boolean(
+      leadData.email?.trim() || leadData.phone?.trim(),
+    );
     const workingWithAgentQuestion = openHouse.openHouseFeedbackQuestions.find(
       (selection) => selection.question.key === 'working_with_agent',
     );
@@ -198,21 +216,23 @@ export class PublicService {
     );
     const createLead = hasContact && workingWithAgentAnswer?.value !== 'YES';
 
-    return this.prisma.$transaction((transaction) =>
-      transaction.feedbackSubmission.create({
-        data: {
-          openHouse: { connect: { id: openHouse.id } },
-          feedbackAnswers: { create: feedbackAnswers },
-          ...(createLead && {
-            lead: { create: { ...leadData, agentId: openHouse.agentId } },
-          }),
-        },
-        select: { id: true, leadId: true, createdAt: true },
-      }),
-    ).then((submission) => ({
-      message: 'Feedback submitted successfully.',
-      submissionId: submission.id,
-      leadCreated: Boolean(submission.leadId),
-    }));
+    return this.prisma
+      .$transaction((transaction) =>
+        transaction.feedbackSubmission.create({
+          data: {
+            openHouse: { connect: { id: openHouse.id } },
+            feedbackAnswers: { create: feedbackAnswers },
+            ...(createLead && {
+              lead: { create: { ...leadData, agentId: openHouse.agentId } },
+            }),
+          },
+          select: { id: true, leadId: true, createdAt: true },
+        }),
+      )
+      .then((submission) => ({
+        message: 'Feedback submitted successfully.',
+        submissionId: submission.id,
+        leadCreated: Boolean(submission.leadId),
+      }));
   }
 }
