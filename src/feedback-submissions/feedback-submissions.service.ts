@@ -3,7 +3,7 @@ import { CreateFeedbackSubmissionDto } from './dto/create-feedback-submission.dt
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
-export class FeedbackSubmissionService {
+export class FeedbackSubmissionsService {
   constructor(private readonly prisma: PrismaService) {}
 
   create(createFeedbackSubmissionDto: CreateFeedbackSubmissionDto) {

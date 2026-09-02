@@ -5,10 +5,10 @@ import { PrismaService } from './prisma/prisma.service';
 import { OpenHousesModule } from './open-houses/open-houses.module';
 import { PublicModule } from './public/public.module';
 import { FeedbackQuestionsModule } from './feedback-questions/feedback-questions.module';
-import { FeedbackSubmissionModule } from './feedback-submission/feedback-submission.module';
 import { LeadsModule } from './leads/leads.module';
 import { AgentAppModule } from './agent-app/agent-app.module';
 import { PropertiesModule } from './properties/properties.module';
+import { FeedbackSubmissionsModule } from './feedback-submissions/feedback-submissions.module';
 
 @Module({
   imports: [
@@ -22,7 +22,7 @@ import { PropertiesModule } from './properties/properties.module';
     OpenHousesModule,
     PublicModule,
     FeedbackQuestionsModule,
-    FeedbackSubmissionModule,
+    FeedbackSubmissionsModule,
     LeadsModule,
     AgentAppModule,
   ],
