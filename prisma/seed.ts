@@ -6,6 +6,7 @@ import {
   PrismaClient,
   OpenHouse,
 } from '../generated/prisma/client';
+import fs from 'node:fs';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -16,6 +17,10 @@ if (!databaseUrl) {
 const prisma = new PrismaClient({
   adapter: new PrismaPg({
     connectionString: databaseUrl,
+    ssl: {
+      ca: fs.readFileSync('./certs/global-bundle.pem', 'utf8'),
+      rejectUnauthorized: true,
+    },
   }),
 });
 
@@ -490,91 +495,94 @@ async function seedQuestionAssignments(
 ) {
   console.log('Assigning feedback questions...');
 
-  await prisma.$transaction(async (transaction) => {
-    for (const agent of savedAgents.values()) {
-      await transaction.agentFeedbackQuestion.deleteMany({
-        where: {
-          agentId: agent.id,
-          question: {
-            key: {
-              in: legacyQuestionKeys,
+  await prisma.$transaction(
+    async (transaction) => {
+      for (const agent of savedAgents.values()) {
+        await transaction.agentFeedbackQuestion.deleteMany({
+          where: {
+            agentId: agent.id,
+            question: {
+              key: {
+                in: legacyQuestionKeys,
+              },
             },
           },
-        },
-      });
+        });
 
-      for (const [sortOrder, questionSeed] of questions.entries()) {
-        const question = savedQuestions.get(questionSeed.key);
+        for (const [sortOrder, questionSeed] of questions.entries()) {
+          const question = savedQuestions.get(questionSeed.key);
 
-        if (!question) {
-          throw new Error(
-            `Unable to find seeded question "${questionSeed.key}".`,
-          );
-        }
+          if (!question) {
+            throw new Error(
+              `Unable to find seeded question "${questionSeed.key}".`,
+            );
+          }
 
-        await transaction.agentFeedbackQuestion.upsert({
-          where: {
-            agentId_questionId: {
+          await transaction.agentFeedbackQuestion.upsert({
+            where: {
+              agentId_questionId: {
+                agentId: agent.id,
+                questionId: question.id,
+              },
+            },
+            update: {
+              required: questionSeed.required ?? false,
+              sortOrder,
+            },
+            create: {
               agentId: agent.id,
               questionId: question.id,
+              required: questionSeed.required ?? false,
+              sortOrder,
             },
-          },
-          update: {
-            required: questionSeed.required ?? false,
-            sortOrder,
-          },
-          create: {
-            agentId: agent.id,
-            questionId: question.id,
-            required: questionSeed.required ?? false,
-            sortOrder,
+          });
+        }
+      }
+
+      for (const openHouse of savedOpenHouses) {
+        await transaction.openHouseFeedbackQuestion.deleteMany({
+          where: {
+            openHouseId: openHouse.id,
+            question: {
+              key: {
+                in: legacyQuestionKeys,
+              },
+            },
           },
         });
-      }
-    }
 
-    for (const openHouse of savedOpenHouses) {
-      await transaction.openHouseFeedbackQuestion.deleteMany({
-        where: {
-          openHouseId: openHouse.id,
-          question: {
-            key: {
-              in: legacyQuestionKeys,
+        for (const [sortOrder, questionSeed] of questions.entries()) {
+          const question = savedQuestions.get(questionSeed.key);
+
+          if (!question) {
+            throw new Error(
+              `Unable to find seeded question "${questionSeed.key}".`,
+            );
+          }
+
+          await transaction.openHouseFeedbackQuestion.upsert({
+            where: {
+              openHouseId_questionId: {
+                openHouseId: openHouse.id,
+                questionId: question.id,
+              },
             },
-          },
-        },
-      });
-
-      for (const [sortOrder, questionSeed] of questions.entries()) {
-        const question = savedQuestions.get(questionSeed.key);
-
-        if (!question) {
-          throw new Error(
-            `Unable to find seeded question "${questionSeed.key}".`,
-          );
-        }
-
-        await transaction.openHouseFeedbackQuestion.upsert({
-          where: {
-            openHouseId_questionId: {
+            update: {
+              required: questionSeed.required ?? false,
+              sortOrder,
+            },
+            create: {
               openHouseId: openHouse.id,
               questionId: question.id,
+              required: questionSeed.required ?? false,
+              sortOrder,
             },
-          },
-          update: {
-            required: questionSeed.required ?? false,
-            sortOrder,
-          },
-          create: {
-            openHouseId: openHouse.id,
-            questionId: question.id,
-            required: questionSeed.required ?? false,
-            sortOrder,
-          },
-        });
+          });
+        }
       }
-    }
-  });
+    },
+    { timeout: 30000 },
+  );
 
   console.log('  ✓ Agent question configurations');
   console.log('  ✓ Open house question configurations');
