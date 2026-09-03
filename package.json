@@ -28,6 +28,7 @@
     "start:dev": "nest start --watch",
     "prestart:qa": "lsof -ti:3001 | xargs kill 2>/dev/null || true",
     "start:qa": "NODE_ENV=qa nest start --watch",
+    "pipeline:qa": "./scripts/watch-qa.sh",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",
     "test": "jest",
