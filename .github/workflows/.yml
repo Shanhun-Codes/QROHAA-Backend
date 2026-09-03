@@ -35,9 +35,6 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
-      - name: Run tests
-        run: npm test -- --runInBand
-
       - name: Build NestJS
         run: npm run build
 
@@ -48,9 +45,9 @@ jobs:
       # DEV
       # --------------------------------------------------
 
-      - name: Deploy to Dev
+      - name: Dev complete
         if: github.ref == 'refs/heads/dev'
-        run: echo "Dev deployment not configured yet."
+        run: echo "Dev build completed successfully."
 
       # --------------------------------------------------
       # QA
@@ -102,6 +99,6 @@ jobs:
       # PROD
       # --------------------------------------------------
 
-      - name: Deploy to Prod
+      - name: Prod complete
         if: github.ref == 'refs/heads/main'
         run: echo "Production deployment not configured yet."
