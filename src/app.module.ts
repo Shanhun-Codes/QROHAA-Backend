@@ -12,12 +12,11 @@ import { FeedbackSubmissionsModule } from './feedback-submissions/feedback-submi
 
 @Module({
   imports: [
-    AgentsModule,
-    PropertiesModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [`.env.${process.env.NODE_ENV ?? 'local'}`, '.env.local'],
     }),
+    AgentsModule,
     PropertiesModule,
     OpenHousesModule,
     PublicModule,

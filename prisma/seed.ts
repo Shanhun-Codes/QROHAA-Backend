@@ -4,6 +4,7 @@ import {
   FeedbackQuestionCategory,
   FeedbackQuestionType,
   PrismaClient,
+  OpenHouse,
 } from '../generated/prisma/client';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -13,7 +14,9 @@ if (!databaseUrl) {
 }
 
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: databaseUrl }),
+  adapter: new PrismaPg({
+    connectionString: databaseUrl,
+  }),
 });
 
 type QuestionSeed = {
@@ -22,7 +25,41 @@ type QuestionSeed = {
   type: FeedbackQuestionType;
   category: FeedbackQuestionCategory;
   required?: boolean;
-  options?: { label: string; value: string }[];
+  options?: {
+    label: string;
+    value: string;
+  }[];
+};
+
+type AgentSeed = {
+  slug: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  brokerageName?: string;
+  headline?: string;
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+};
+
+type PropertySeed = {
+  id: string;
+  street: string;
+  street2?: string;
+  city: string;
+  state: string;
+  zip: string;
+  listingPriceCents?: number;
+};
+
+type OpenHouseSeed = {
+  publicCode: string;
+  agentSlug: string;
+  propertyId: string;
+  startsAt: Date;
+  endsAt: Date;
 };
 
 const ratingOptions = [
@@ -49,9 +86,6 @@ const legacyQuestionKeys = [
   'preQualified',
   'workingWithAgent',
 ];
-
-const seedPropertyId = 'seed-property-michael-elder';
-const seedOpenHouseCode = '65TMX6HF';
 
 const questions: QuestionSeed[] = [
   {
@@ -94,7 +128,10 @@ const questions: QuestionSeed[] = [
     label: 'Do you live in this neighborhood?',
     type: 'SINGLE_SELECT',
     category: 'BUYER_PROFILE',
-    options: [{ label: 'Yes', value: 'YES' }, { label: 'No', value: 'NO' }],
+    options: [
+      { label: 'Yes', value: 'YES' },
+      { label: 'No', value: 'NO' },
+    ],
   },
   {
     key: 'purchase_timeline',
@@ -109,18 +146,53 @@ const questions: QuestionSeed[] = [
       { label: 'Just browsing', value: 'JUST_BROWSING' },
     ],
   },
-  { key: 'location_rating', label: 'Location', type: 'RATING', category: 'PROPERTY_FEEDBACK', options: ratingOptions },
-  { key: 'price_rating', label: 'Price', type: 'RATING', category: 'PROPERTY_FEEDBACK', options: ratingOptions },
-  { key: 'floor_plan_rating', label: 'Floorplan', type: 'RATING', category: 'PROPERTY_FEEDBACK', options: ratingOptions },
-  { key: 'curb_appeal_rating', label: 'Curb Appeal', type: 'RATING', category: 'PROPERTY_FEEDBACK', options: ratingOptions },
-  { key: 'overall_appeal_rating', label: 'Overall Appeal', type: 'RATING', category: 'PROPERTY_FEEDBACK', options: ratingOptions },
+  {
+    key: 'location_rating',
+    label: 'Location',
+    type: 'RATING',
+    category: 'PROPERTY_FEEDBACK',
+    options: ratingOptions,
+  },
+  {
+    key: 'price_rating',
+    label: 'Price',
+    type: 'RATING',
+    category: 'PROPERTY_FEEDBACK',
+    options: ratingOptions,
+  },
+  {
+    key: 'floor_plan_rating',
+    label: 'Floorplan',
+    type: 'RATING',
+    category: 'PROPERTY_FEEDBACK',
+    options: ratingOptions,
+  },
+  {
+    key: 'curb_appeal_rating',
+    label: 'Curb Appeal',
+    type: 'RATING',
+    category: 'PROPERTY_FEEDBACK',
+    options: ratingOptions,
+  },
+  {
+    key: 'overall_appeal_rating',
+    label: 'Overall Appeal',
+    type: 'RATING',
+    category: 'PROPERTY_FEEDBACK',
+    options: ratingOptions,
+  },
   {
     key: 'liked_most',
     label: 'What did you like most about this house?',
     type: 'TEXTAREA',
     category: 'PROPERTY_FEEDBACK',
   },
-  { key: 'liked_least', label: 'What did you like least?', type: 'TEXTAREA', category: 'PROPERTY_FEEDBACK' },
+  {
+    key: 'liked_least',
+    label: 'What did you like least?',
+    type: 'TEXTAREA',
+    category: 'PROPERTY_FEEDBACK',
+  },
   {
     key: 'pre_qualified',
     label: 'Have you been prequalified for a mortgage?',
@@ -137,168 +209,428 @@ const questions: QuestionSeed[] = [
     label: 'Are you currently working with a real estate agent?',
     type: 'SINGLE_SELECT',
     category: 'BUYING_READINESS',
-    options: [{ label: 'Yes', value: 'YES' }, { label: 'No', value: 'NO' }],
+    options: [
+      { label: 'Yes', value: 'YES' },
+      { label: 'No', value: 'NO' },
+    ],
   },
 ];
 
-async function main() {
-  console.log('Seeding feedback form data...');
+const agents: AgentSeed[] = [
+  {
+    slug: 'michael-elder',
+    firstName: 'Michael',
+    lastName: 'Elder',
+    email: 'michael.elder.qa@example.com',
+    phone: '4175550101',
+    brokerageName: 'Keller Williams',
+    headline:
+      'Thank you for visiting! Honest opinions are appreciated - takes about 60 seconds.',
+    logoUrl: 'KWLogo.png',
+    primaryColor: 'B40101',
+    secondaryColor: 'FFFFFF',
+  },
+  {
+    slug: 'angular-tester1',
+    firstName: 'Angular',
+    lastName: 'Tester1',
+    email: 'angular.tester1.qa@example.com',
+    phone: '4175550102',
+    brokerageName: 'QA Realty',
+    headline: 'QA test agent for development and automated testing.',
+    primaryColor: '1F2937',
+    secondaryColor: 'FFFFFF',
+  },
+];
 
-  const agent = await prisma.agent.upsert({
-    where: { slug: 'michael-elder' },
-    update: {
-      firstName: 'Michael',
-      lastName: 'Elder',
-      email: 'michael.elder@kw.com',
-      phone: '4175763487',
-      brokerageName: 'Keller Williams local',
-      headline: 'Thank you for visiting! Honest opinions are appreciated - takes about 60 seconds.',
-      logoUrl: 'KWLogo.png',
+const properties: PropertySeed[] = [
+  {
+    id: 'qa-property-downtown-001',
+    street: '310 N Jefferson Ave',
+    street2: 'Apt 126',
+    city: 'Springfield',
+    state: 'MO',
+    zip: '65806',
+    listingPriceCents: 35000000,
+  },
+  {
+    id: 'qa-property-southside-002',
+    street: '2201 S Campbell Ave',
+    city: 'Springfield',
+    state: 'MO',
+    zip: '65807',
+    listingPriceCents: 42500000,
+  },
+  {
+    id: 'qa-property-eastside-003',
+    street: '1850 E Sunshine St',
+    city: 'Springfield',
+    state: 'MO',
+    zip: '65804',
+    listingPriceCents: 57500000,
+  },
+  {
+    id: 'qa-property-premium-004',
+    street: '4100 S Fremont Ave',
+    city: 'Springfield',
+    state: 'MO',
+    zip: '65804',
+    listingPriceCents: 82500000,
+  },
+];
+
+const openHouses: OpenHouseSeed[] = [
+  // Existing known Michael test URL
+  {
+    publicCode: '65TMX6HF',
+    agentSlug: 'michael-elder',
+    propertyId: 'qa-property-downtown-001',
+    startsAt: new Date('2026-09-05T15:00:00.000Z'),
+    endsAt: new Date('2026-09-05T18:00:00.000Z'),
+  },
+
+  // Angular tester current/future QA open house
+  {
+    publicCode: 'ANGQA001',
+    agentSlug: 'angular-tester1',
+    propertyId: 'qa-property-southside-002',
+    startsAt: new Date('2026-09-06T17:00:00.000Z'),
+    endsAt: new Date('2026-09-06T20:00:00.000Z'),
+  },
+
+  // Second future open house for list testing
+  {
+    publicCode: 'ANGQA002',
+    agentSlug: 'angular-tester1',
+    propertyId: 'qa-property-eastside-003',
+    startsAt: new Date('2026-09-12T16:00:00.000Z'),
+    endsAt: new Date('2026-09-12T19:00:00.000Z'),
+  },
+
+  // Past open house for history/filter testing
+  {
+    publicCode: 'ANGPAST1',
+    agentSlug: 'angular-tester1',
+    propertyId: 'qa-property-premium-004',
+    startsAt: new Date('2026-08-15T16:00:00.000Z'),
+    endsAt: new Date('2026-08-15T19:00:00.000Z'),
+  },
+];
+
+async function seedAgents() {
+  console.log('Seeding agents...');
+
+  const savedAgents = new Map<
+    string,
+    Awaited<ReturnType<typeof prisma.agent.upsert>>
+  >();
+
+  for (const agent of agents) {
+    const savedAgent = await prisma.agent.upsert({
+      where: {
+        slug: agent.slug,
+      },
+      update: {
+        firstName: agent.firstName,
+        lastName: agent.lastName,
+        email: agent.email,
+        phone: agent.phone,
+        brokerageName: agent.brokerageName,
+        headline: agent.headline,
+        logoUrl: agent.logoUrl,
+        primaryColor: agent.primaryColor,
+        secondaryColor: agent.secondaryColor,
+      },
+      create: agent,
+    });
+
+    savedAgents.set(agent.slug, savedAgent);
+
+    console.log(`  ✓ ${savedAgent.slug}`);
+  }
+
+  return savedAgents;
+}
+
+async function seedProperties() {
+  console.log('Seeding properties...');
+
+  for (const property of properties) {
+    await prisma.property.upsert({
+      where: {
+        id: property.id,
+      },
+      update: {
+        street: property.street,
+        street2: property.street2,
+        city: property.city,
+        state: property.state,
+        zip: property.zip,
+        listingPriceCents: property.listingPriceCents,
+      },
+      create: property,
+    });
+
+    console.log(`  ✓ ${property.street}`);
+  }
+}
+
+async function seedQuestions() {
+  console.log('Seeding feedback questions...');
+
+  await prisma.feedbackQuestion.updateMany({
+    where: {
+      key: {
+        in: legacyQuestionKeys,
+      },
     },
-    create: {
-      slug: 'michael-elder',
-      firstName: 'Michael',
-      lastName: 'Elder',
-      email: 'michael.elder@kw.com',
-      phone: '4175763487',
-      brokerageName: 'Keller Williams local',
-      headline: 'Thank you for visiting! Honest opinions are appreciated - takes about 60 seconds.',
-      logoUrl: 'KWLogo.png',
+    data: {
+      active: false,
     },
   });
 
-  const property = await prisma.property.upsert({
-    where: { id: seedPropertyId },
-    update: {
-      street: '310 N Jefferson',
-      street2: 'Apt 126',
-      city: 'Springfield',
-      state: 'MO',
-      zip: '65806',
-      listingPriceCents: 35000000,
-    },
-    create: {
-      id: seedPropertyId,
-      street: '310 N Jefferson',
-      street2: 'Apt 126',
-      city: 'Springfield',
-      state: 'MO',
-      zip: '65806',
-      listingPriceCents: 35000000,
-    },
-  });
+  const savedQuestions = new Map<
+    string,
+    Awaited<ReturnType<typeof prisma.feedbackQuestion.upsert>>
+  >();
 
-  const openHouse = await prisma.openHouse.upsert({
-    where: { publicCode: seedOpenHouseCode },
-    update: {
-      startsAt: new Date('2026-08-31T13:00:00.000Z'),
-      endsAt: new Date('2026-08-31T15:00:00.000Z'),
-      agentId: agent.id,
-      propertyId: property.id,
-    },
-    create: {
-      publicCode: seedOpenHouseCode,
-      startsAt: new Date('2026-08-31T13:00:00.000Z'),
-      endsAt: new Date('2026-08-31T15:00:00.000Z'),
-      agentId: agent.id,
-      propertyId: property.id,
-    },
-  });
+  for (const question of questions) {
+    const savedQuestion = await prisma.feedbackQuestion.upsert({
+      where: {
+        key: question.key,
+      },
+      update: {
+        label: question.label,
+        type: question.type,
+        category: question.category,
+        active: true,
+      },
+      create: {
+        key: question.key,
+        label: question.label,
+        type: question.type,
+        category: question.category,
+        active: true,
+      },
+    });
+
+    await prisma.feedbackQuestionOption.deleteMany({
+      where: {
+        questionId: savedQuestion.id,
+      },
+    });
+
+    if (question.options?.length) {
+      await prisma.feedbackQuestionOption.createMany({
+        data: question.options.map((option, sortOrder) => ({
+          questionId: savedQuestion.id,
+          label: option.label,
+          value: option.value,
+          sortOrder,
+        })),
+      });
+    }
+
+    savedQuestions.set(question.key, savedQuestion);
+
+    console.log(`  ✓ ${question.key}`);
+  }
+
+  return savedQuestions;
+}
+
+async function seedOpenHouses(
+  savedAgents: Map<string, Awaited<ReturnType<typeof prisma.agent.upsert>>>,
+) {
+  console.log('Seeding open houses...');
+
+  const savedOpenHouses: OpenHouse[] = [];
+
+  for (const openHouse of openHouses) {
+    const agent = savedAgents.get(openHouse.agentSlug);
+
+    if (!agent) {
+      throw new Error(`Unable to find seeded agent "${openHouse.agentSlug}".`);
+    }
+
+    const savedOpenHouse = await prisma.openHouse.upsert({
+      where: {
+        publicCode: openHouse.publicCode,
+      },
+      update: {
+        agentId: agent.id,
+        propertyId: openHouse.propertyId,
+        startsAt: openHouse.startsAt,
+        endsAt: openHouse.endsAt,
+      },
+      create: {
+        publicCode: openHouse.publicCode,
+        agentId: agent.id,
+        propertyId: openHouse.propertyId,
+        startsAt: openHouse.startsAt,
+        endsAt: openHouse.endsAt,
+      },
+    });
+
+    savedOpenHouses.push(savedOpenHouse);
+
+    console.log(`  ✓ ${openHouse.publicCode} (${openHouse.agentSlug})`);
+  }
+
+  return savedOpenHouses;
+}
+
+async function seedQuestionAssignments(
+  savedAgents: Map<string, Awaited<ReturnType<typeof prisma.agent.upsert>>>,
+  savedQuestions: Map<
+    string,
+    Awaited<ReturnType<typeof prisma.feedbackQuestion.upsert>>
+  >,
+  savedOpenHouses: Awaited<ReturnType<typeof seedOpenHouses>>,
+) {
+  console.log('Assigning feedback questions...');
 
   await prisma.$transaction(async (transaction) => {
-    await transaction.feedbackQuestion.updateMany({
-      where: { key: { in: legacyQuestionKeys } },
-      data: { active: false },
-    });
-
-    await transaction.agentFeedbackQuestion.deleteMany({
-      where: {
-        agentId: agent.id,
-        question: { key: { in: legacyQuestionKeys } },
-      },
-    });
-    await transaction.openHouseFeedbackQuestion.deleteMany({
-      where: {
-        openHouseId: openHouse.id,
-        question: { key: { in: legacyQuestionKeys } },
-      },
-    });
-
-    for (const [sortOrder, question] of questions.entries()) {
-      const savedQuestion = await transaction.feedbackQuestion.upsert({
-        where: { key: question.key },
-        update: {
-          label: question.label,
-          type: question.type,
-          category: question.category,
-          active: true,
-        },
-        create: {
-          key: question.key,
-          label: question.label,
-          type: question.type,
-          category: question.category,
+    for (const agent of savedAgents.values()) {
+      await transaction.agentFeedbackQuestion.deleteMany({
+        where: {
+          agentId: agent.id,
+          question: {
+            key: {
+              in: legacyQuestionKeys,
+            },
+          },
         },
       });
 
-      await transaction.feedbackQuestionOption.deleteMany({
-        where: { questionId: savedQuestion.id },
-      });
+      for (const [sortOrder, questionSeed] of questions.entries()) {
+        const question = savedQuestions.get(questionSeed.key);
 
-      if (question.options) {
-        await transaction.feedbackQuestionOption.createMany({
-          data: question.options.map((option, optionSortOrder) => ({
-            label: option.label,
-            value: option.value,
-            sortOrder: optionSortOrder,
-            questionId: savedQuestion.id,
-          })),
+        if (!question) {
+          throw new Error(
+            `Unable to find seeded question "${questionSeed.key}".`,
+          );
+        }
+
+        await transaction.agentFeedbackQuestion.upsert({
+          where: {
+            agentId_questionId: {
+              agentId: agent.id,
+              questionId: question.id,
+            },
+          },
+          update: {
+            required: questionSeed.required ?? false,
+            sortOrder,
+          },
+          create: {
+            agentId: agent.id,
+            questionId: question.id,
+            required: questionSeed.required ?? false,
+            sortOrder,
+          },
         });
       }
+    }
 
-      await transaction.agentFeedbackQuestion.upsert({
+    for (const openHouse of savedOpenHouses) {
+      await transaction.openHouseFeedbackQuestion.deleteMany({
         where: {
-          agentId_questionId: {
-            agentId: agent.id,
-            questionId: savedQuestion.id,
-          },
-        },
-        update: { required: question.required ?? false, sortOrder },
-        create: {
-          agentId: agent.id,
-          questionId: savedQuestion.id,
-          required: question.required ?? false,
-          sortOrder,
-        },
-      });
-
-      await transaction.openHouseFeedbackQuestion.upsert({
-        where: {
-          openHouseId_questionId: {
-            openHouseId: openHouse.id,
-            questionId: savedQuestion.id,
-          },
-        },
-        update: { required: question.required ?? false, sortOrder },
-        create: {
           openHouseId: openHouse.id,
-          questionId: savedQuestion.id,
-          required: question.required ?? false,
-          sortOrder,
+          question: {
+            key: {
+              in: legacyQuestionKeys,
+            },
+          },
         },
       });
+
+      for (const [sortOrder, questionSeed] of questions.entries()) {
+        const question = savedQuestions.get(questionSeed.key);
+
+        if (!question) {
+          throw new Error(
+            `Unable to find seeded question "${questionSeed.key}".`,
+          );
+        }
+
+        await transaction.openHouseFeedbackQuestion.upsert({
+          where: {
+            openHouseId_questionId: {
+              openHouseId: openHouse.id,
+              questionId: question.id,
+            },
+          },
+          update: {
+            required: questionSeed.required ?? false,
+            sortOrder,
+          },
+          create: {
+            openHouseId: openHouse.id,
+            questionId: question.id,
+            required: questionSeed.required ?? false,
+            sortOrder,
+          },
+        });
+      }
     }
   });
 
-  console.log(
-    `Seed complete: ${agent.firstName} ${agent.lastName} (${agent.slug}), ${property.street}, and open house ${openHouse.publicCode} have ${questions.length} feedback questions.`,
-  );
+  console.log('  ✓ Agent question configurations');
+  console.log('  ✓ Open house question configurations');
+}
+
+async function main() {
+  console.log('');
+  console.log('========================================');
+  console.log(' QROHAA QA DATABASE SEED');
+  console.log('========================================');
+  console.log('');
+
+  const savedAgents = await seedAgents();
+
+  await seedProperties();
+
+  const savedQuestions = await seedQuestions();
+
+  const savedOpenHouses = await seedOpenHouses(savedAgents);
+
+  await seedQuestionAssignments(savedAgents, savedQuestions, savedOpenHouses);
+
+  console.log('');
+  console.log('========================================');
+  console.log(' QA SEED COMPLETE');
+  console.log('========================================');
+  console.log('');
+  console.log(`Agents:       ${savedAgents.size}`);
+  console.log(`Properties:   ${properties.length}`);
+  console.log(`Open houses:  ${savedOpenHouses.length}`);
+  console.log(`Questions:    ${savedQuestions.size}`);
+  console.log('');
+  console.log('Test URLs:');
+  console.log('');
+  console.log('Agent:');
+  console.log('  /public/agents/michael-elder');
+  console.log('  /public/agents/angular-tester1');
+  console.log('');
+  console.log('Open houses:');
+  console.log('  /public/agents/michael-elder/open-houses/65TMX6HF');
+  console.log('  /public/agents/angular-tester1/open-houses/ANGQA001');
+  console.log('  /public/agents/angular-tester1/open-houses/ANGQA002');
+  console.log('  /public/agents/angular-tester1/open-houses/ANGPAST1');
+  console.log('');
 }
 
 main()
-  .then(() => prisma.$disconnect())
-  .catch(async (error: unknown) => {
-    console.error(error);
+  .then(async () => {
     await prisma.$disconnect();
+  })
+  .catch(async (error: unknown) => {
+    console.error('');
+    console.error('QA seed failed:');
+    console.error(error);
+
+    await prisma.$disconnect();
+
     process.exit(1);
   });
