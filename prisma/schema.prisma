@@ -115,6 +115,19 @@ model FeedbackQuestion {
   feedbackAnswers FeedbackAnswer[]
 }
 
+model AgentFeedbackQuestion {
+  agentId    String
+  questionId String
+  active     Boolean @default(true)
+  required   Boolean @default(false)
+  sortOrder  Int
+
+  agent    Agent            @relation(fields: [agentId], references: [id])
+  question FeedbackQuestion @relation(fields: [questionId], references: [id])
+
+  @@id([agentId, questionId])
+}
+
 model FeedbackQuestionOption {
   id String @id @default(cuid())
 
@@ -124,19 +137,6 @@ model FeedbackQuestionOption {
 
   questionId String
   question   FeedbackQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-}
-
-model AgentFeedbackQuestion {
-  agentId    String
-  questionId String
-
-  required  Boolean @default(false)
-  sortOrder Int
-
-  agent    Agent            @relation(fields: [agentId], references: [id])
-  question FeedbackQuestion @relation(fields: [questionId], references: [id])
-
-  @@id([agentId, questionId])
 }
 
 model OpenHouseFeedbackQuestion {

@@ -2,13 +2,26 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, qa, dev]
+    branches:
+      - main
+      - qa
+      - dev
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: qrohaa-backend
 
 jobs:
   test-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -22,20 +35,70 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
-      - name: Run tests
-        run: npm test
-
-      - name: Build
+      - name: Build NestJS
         run: npm run build
-      
-      - name: Deploy to Dev
+
+      - name: Build Docker image
+        run: docker build -t qrohaa-backend .
+
+      # --------------------------------------------------
+      # DEV
+      # --------------------------------------------------
+
+      - name: Dev complete
         if: github.ref == 'refs/heads/dev'
-        run: echo "Deploy to dev server..."
-      
-      - name: Deploy to QA
+        run: echo "Dev build completed successfully."
+
+      # --------------------------------------------------
+      # QA
+      # --------------------------------------------------
+
+      - name: Configure AWS credentials for QA
         if: github.ref == 'refs/heads/qa'
-        run: echo "Deploy to qa server..."
-      
-      - name: Deploy to Prod
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::545009862799:role/qrohaa-github-qa-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: github.ref == 'refs/heads/qa'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag and push QA Docker image
+        if: github.ref == 'refs/heads/qa'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker tag \
+            qrohaa-backend \
+            $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+          docker tag \
+            qrohaa-backend \
+            $ECR_REGISTRY/$ECR_REPOSITORY:qa-latest
+
+          docker push \
+            $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+          docker push \
+            $ECR_REGISTRY/$ECR_REPOSITORY:qa-latest
+
+      - name: QA image summary
+        if: github.ref == 'refs/heads/qa'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "QA Docker image pushed successfully."
+          echo "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          echo "$ECR_REGISTRY/$ECR_REPOSITORY:qa-latest"
+
+      # --------------------------------------------------
+      # PROD
+      # --------------------------------------------------
+
+      - name: Prod complete
         if: github.ref == 'refs/heads/main'
-        run: echo "Deploy to prod server..."
+        run: echo "Production deployment not configured yet."

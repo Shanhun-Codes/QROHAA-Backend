@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { AgentsService } from 'src/agents/agents.service';
 import { CreateAgentDto } from 'src/agents/dto/create-agent.dto';
 import { CreateFeedbackQuestionDto } from 'src/feedback-questions/dto/create-feedback-question.dto';
+import { UpdateFeedbackQuestionDto } from 'src/feedback-questions/dto/update-feedback-question.dto';
 import { FeedbackQuestionsService } from 'src/feedback-questions/feedback-questions.service';
 import { CreateLeadDto } from 'src/leads/dto/create-lead.dto';
 import { LeadsService } from 'src/leads/leads.service';
@@ -25,11 +26,6 @@ export class AgentAppController {
     return this.leadsService.findAllLeadsWithSelectedFeedback();
   }
 
-  @Post('leads')
-  createLead(@Body() createLeadDto: CreateLeadDto) {
-    return this.leadsService.create(createLeadDto);
-  }
-
   @Post('open-houses')
   createOpenHouse(@Body() createOpenHouseDto: CreateOpenHousesDto) {
     return this.openHouseService.create(createOpenHouseDto);
@@ -45,8 +41,16 @@ export class AgentAppController {
     return this.propertyService.create(createPropertyDto);
   }
 
-  @Post()
-  createQuestion(@Body() createFeedbackQuestionDto: CreateFeedbackQuestionDto) {
-    return this.feedbackQuestionsService.create(createFeedbackQuestionDto);
-  }
+  // @Patch('feedback-questions/:questionId')
+  // updateFeedbackQuestion(
+  //   @CurrentAgent() agent: AuthenticatedAgent,
+  //   @Param('questionId') questionId: string,
+  //   @Body() dto: UpdateAgentFeedbackQuestionDto,
+  // ) {
+  //   return this.agentFeedbackQuestionsService.updateAgentQuestion(
+  //     agent.id,
+  //     questionId,
+  //     dto,
+  //   );
+  // }
 }
