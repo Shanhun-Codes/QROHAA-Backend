@@ -45,8 +45,10 @@ type AgentSeed = {
   brokerageName?: string;
   headline?: string;
   logoUrl?: string;
+  headshotUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
+  accentColor?: string;
 };
 
 type PropertySeed = {
@@ -226,14 +228,16 @@ const agents: AgentSeed[] = [
     slug: 'michael-elder',
     firstName: 'Michael',
     lastName: 'Elder',
-    email: 'michael.elder.qa@example.com',
-    phone: '4175550101',
-    brokerageName: 'Keller Williams',
+    email: 'michael.elder@kw.com',
+    phone: '4175763487',
+    brokerageName: 'Keller Williams local',
     headline:
       'Thank you for visiting! Honest opinions are appreciated - takes about 60 seconds.',
     logoUrl: 'KWLogo.png',
-    primaryColor: 'B40101',
-    secondaryColor: 'FFFFFF',
+    headshotUrl: 'michael-elder-headshot.PNG',
+    primaryColor: '#0A0A0A',
+    secondaryColor: '#7F1D1D',
+    accentColor: '#DC2626',
   },
   {
     slug: 'angular-tester1',
@@ -243,12 +247,21 @@ const agents: AgentSeed[] = [
     phone: '4175550102',
     brokerageName: 'QA Realty',
     headline: 'QA test agent for development and automated testing.',
-    primaryColor: '1F2937',
-    secondaryColor: 'FFFFFF',
+    primaryColor: '#1F2937',
+    secondaryColor: '#FFFFFF',
   },
 ];
 
 const properties: PropertySeed[] = [
+  {
+    id: 'qa-property-michael-sunshine-001',
+    street: '1949 E Sunshine St',
+    street2: '',
+    city: 'Springfield',
+    state: 'MO',
+    zip: '65804',
+    listingPriceCents: 35000000,
+  },
   {
     id: 'qa-property-downtown-001',
     street: '310 N Jefferson Ave',
@@ -285,7 +298,16 @@ const properties: PropertySeed[] = [
 ];
 
 const openHouses: OpenHouseSeed[] = [
-  // Existing known Michael test URL
+  // Michael local configuration mirrored into QA.
+  {
+    publicCode: 'RE7VW854',
+    agentSlug: 'michael-elder',
+    propertyId: 'qa-property-michael-sunshine-001',
+    startsAt: new Date('2026-08-31T13:00:00.000Z'),
+    endsAt: new Date('2026-08-31T15:00:00.000Z'),
+  },
+
+  // Existing Michael QA test URL.
   {
     publicCode: '65TMX6HF',
     agentSlug: 'michael-elder',
@@ -294,7 +316,7 @@ const openHouses: OpenHouseSeed[] = [
     endsAt: new Date('2026-09-05T18:00:00.000Z'),
   },
 
-  // Angular tester current/future QA open house
+  // Angular tester current/future QA open house.
   {
     publicCode: 'ANGQA001',
     agentSlug: 'angular-tester1',
@@ -303,7 +325,7 @@ const openHouses: OpenHouseSeed[] = [
     endsAt: new Date('2026-09-06T20:00:00.000Z'),
   },
 
-  // Second future open house for list testing
+  // Second future open house for list testing.
   {
     publicCode: 'ANGQA002',
     agentSlug: 'angular-tester1',
@@ -312,7 +334,7 @@ const openHouses: OpenHouseSeed[] = [
     endsAt: new Date('2026-09-12T19:00:00.000Z'),
   },
 
-  // Past open house for history/filter testing
+  // Past open house for history/filter testing.
   {
     publicCode: 'ANGPAST1',
     agentSlug: 'angular-tester1',
@@ -343,8 +365,10 @@ async function seedAgents() {
         brokerageName: agent.brokerageName,
         headline: agent.headline,
         logoUrl: agent.logoUrl,
+        headshotUrl: agent.headshotUrl,
         primaryColor: agent.primaryColor,
         secondaryColor: agent.secondaryColor,
+        accentColor: agent.accentColor,
       },
       create: agent,
     });
@@ -622,10 +646,21 @@ async function main() {
   console.log('  /public/agents/angular-tester1');
   console.log('');
   console.log('Open houses:');
-  console.log('  /public/agents/michael-elder/open-houses/65TMX6HF');
-  console.log('  /public/agents/angular-tester1/open-houses/ANGQA001');
-  console.log('  /public/agents/angular-tester1/open-houses/ANGQA002');
-  console.log('  /public/agents/angular-tester1/open-houses/ANGPAST1');
+  console.log(
+    '  /public/agents/michael-elder/open-houses/RE7VW854/configuration',
+  );
+  console.log(
+    '  /public/agents/michael-elder/open-houses/65TMX6HF/configuration',
+  );
+  console.log(
+    '  /public/agents/angular-tester1/open-houses/ANGQA001/configuration',
+  );
+  console.log(
+    '  /public/agents/angular-tester1/open-houses/ANGQA002/configuration',
+  );
+  console.log(
+    '  /public/agents/angular-tester1/open-houses/ANGPAST1/configuration',
+  );
   console.log('');
 }
 
