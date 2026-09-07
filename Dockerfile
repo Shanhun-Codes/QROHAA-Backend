@@ -29,9 +29,14 @@ COPY package*.json ./
 
 RUN npm ci --omit=dev --ignore-scripts
 
+# NestJS compiled application
 COPY --from=build /app/dist ./dist
 
+# Prisma schema + migrations
 COPY --from=build /app/prisma ./prisma
+
+# Prisma 7 configuration required for migrate deploy
+COPY --from=build /app/prisma7.config.ts ./prisma7.config.ts
 
 EXPOSE 3000
 
