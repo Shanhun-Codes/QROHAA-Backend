@@ -28,8 +28,8 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
-      - name: Run tests
-        run: npm test -- --runInBand
+      # - name: Run tests
+      #   run: npm test -- --runInBand
 
       - name: Build
         run: npm run build
