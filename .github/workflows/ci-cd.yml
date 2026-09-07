@@ -1,0 +1,144 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, qa, dev]
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run tests
+        run: npm test -- --runInBand
+
+      - name: Build
+        run: npm run build
+
+      # -----------------------------
+      # DEV
+      # -----------------------------
+      - name: Deploy to Dev
+        if: github.ref == 'refs/heads/dev'
+        run: echo "Dev deployment not configured yet"
+
+      # -----------------------------
+      # QA
+      # -----------------------------
+      - name: Configure AWS credentials for QA
+        if: github.ref == 'refs/heads/qa'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::545009862799:role/qrohaa-github-qa-deploy
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        if: github.ref == 'refs/heads/qa'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push QA image
+        if: github.ref == 'refs/heads/qa'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: qrohaa-backend
+          IMAGE_TAG: qa-latest
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            .
+
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Get QA service network configuration
+        if: github.ref == 'refs/heads/qa'
+        id: qa-network
+        run: |
+          SERVICE_JSON=$(aws ecs describe-services \
+            --cluster qrohaa \
+            --services qrohaa-qa-backend-service-vi76oknv)
+
+          SUBNETS=$(echo "$SERVICE_JSON" | jq -r '.services[0].networkConfiguration.awsvpcConfiguration.subnets | join(",")')
+          SECURITY_GROUPS=$(echo "$SERVICE_JSON" | jq -r '.services[0].networkConfiguration.awsvpcConfiguration.securityGroups | join(",")')
+          ASSIGN_PUBLIC_IP=$(echo "$SERVICE_JSON" | jq -r '.services[0].networkConfiguration.awsvpcConfiguration.assignPublicIp')
+
+          echo "subnets=$SUBNETS" >> "$GITHUB_OUTPUT"
+          echo "security_groups=$SECURITY_GROUPS" >> "$GITHUB_OUTPUT"
+          echo "assign_public_ip=$ASSIGN_PUBLIC_IP" >> "$GITHUB_OUTPUT"
+
+      - name: Run QA Prisma migrations
+        if: github.ref == 'refs/heads/qa'
+        run: |
+          TASK_ARN=$(aws ecs run-task \
+            --cluster qrohaa \
+            --launch-type FARGATE \
+            --task-definition qrohaa-qa-backend:6 \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ steps.qa-network.outputs.subnets }}],securityGroups=[${{ steps.qa-network.outputs.security_groups }}],assignPublicIp=${{ steps.qa-network.outputs.assign_public_ip }}}" \
+            --overrides '{
+              "containerOverrides": [
+                {
+                  "name": "qrohaa-backend",
+                  "command": ["npx", "prisma", "migrate", "deploy"]
+                }
+              ]
+            }' \
+            --query 'tasks[0].taskArn' \
+            --output text)
+
+          echo "Migration task: $TASK_ARN"
+
+          aws ecs wait tasks-stopped \
+            --cluster qrohaa \
+            --tasks "$TASK_ARN"
+
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster qrohaa \
+            --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text)
+
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "Prisma migration failed"
+            exit 1
+          fi
+
+      - name: Deploy QA ECS service
+        if: github.ref == 'refs/heads/qa'
+        run: |
+          aws ecs update-service \
+            --cluster qrohaa \
+            --service qrohaa-qa-backend-service-vi76oknv \
+            --force-new-deployment
+
+      - name: Wait for QA service to stabilize
+        if: github.ref == 'refs/heads/qa'
+        run: |
+          aws ecs wait services-stable \
+            --cluster qrohaa \
+            --services qrohaa-qa-backend-service-vi76oknv
+
+      # -----------------------------
+      # PROD
+      # -----------------------------
+      - name: Deploy to Prod
+        if: github.ref == 'refs/heads/main'
+        run: echo "Production deployment not configured yet"
