@@ -33,11 +33,11 @@ model Agent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  openHouses OpenHouse[]
-
   agentFeedbackQuestions AgentFeedbackQuestion[]
-
-  leads Lead[]
+  openHouses             OpenHouse[]
+  properties             Property[]
+  leads                  Lead[]
+  notes                  Note[]
 }
 
 model Property {
@@ -50,6 +50,9 @@ model Property {
   zip     String
 
   listingPriceCents Int?
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
 
   openHouses OpenHouse[]
 
@@ -204,4 +207,53 @@ model Lead {
   createdAt DateTime @default(now())
 
   submissions FeedbackSubmission[]
+}
+
+enum NoteEntityType {
+  LEAD
+  PROPERTY
+  OPEN_HOUSE
+}
+
+model Note {
+  id String @id @default(cuid())
+
+  body String
+
+  // The entity this note belongs to.
+  // Example: LEAD + dev-lead-michael-001
+  subjectType NoteEntityType
+  subjectId   String
+
+  // Agent who owns the note.
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  mentions NoteMention[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subjectType, subjectId])
+  @@index([agentId])
+}
+
+model NoteMention {
+  id String @id @default(cuid())
+
+  noteId String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  // Entity referenced with an @tag inside the note.
+  targetType NoteEntityType
+  targetId   String
+
+  // Human-readable text displayed for the tag.
+  // Example: "Jim Bean" or "1949 E Sunshine St"
+  label String
+
+  createdAt DateTime @default(now())
+
+  @@index([noteId])
+  @@index([targetType, targetId])
 }

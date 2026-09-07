@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreatePropertiesDto } from './dto/create-properties.dto';
 import { UpdatePropertiesDto } from './dto/update-properties.dto';
+import { connect } from 'http2';
 
 @Injectable()
 export class PropertiesService {
@@ -16,6 +17,11 @@ export class PropertiesService {
         state: createPropertyDto.state,
         zip: createPropertyDto.zip,
         listingPriceCents: createPropertyDto.listingPriceCents,
+        agent: {
+          connect: {
+            id: createPropertyDto.agentId,
+          },
+        },
       },
     });
   }
@@ -26,6 +32,13 @@ export class PropertiesService {
     });
   }
 
+  findAllAgentProperties(agentId: string) {
+    return this.prisma.property.findMany({
+      where: {
+        agentId,
+      },
+    });
+  }
   findPropertyById(id: string) {
     return this.prisma.property.findUnique({ where: { id } });
   }

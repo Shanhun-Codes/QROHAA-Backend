@@ -27,14 +27,16 @@ export class LeadsService {
     });
   }
 
-  findAllLeadsWithSelectedFeedback() {
+  findAllLeadsWithSelectedFeedback(id) {
     const selectedFeedbackKeys = [
       'budget_range',
       'pre_qualified',
       'purchase_timeline',
+      'neighborhoods',
     ];
 
     return this.prisma.lead.findMany({
+      where: { agentId: id },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -42,12 +44,11 @@ export class LeadsService {
         lastName: true,
         email: true,
         phone: true,
-        agentId: true,
         status: true,
+        createdAt: true,
         submissions: {
           orderBy: { createdAt: 'desc' },
           select: {
-            id: true,
             openHouseId: true,
             createdAt: true,
             feedbackAnswers: {
@@ -65,6 +66,12 @@ export class LeadsService {
           },
         },
       },
+    });
+  }
+
+  findAllAgentLeads(agentId: string) {
+    return this.prisma.lead.findMany({
+      where: { agentId: agentId },
     });
   }
 

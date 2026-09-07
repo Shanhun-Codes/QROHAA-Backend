@@ -3,6 +3,7 @@ import { CreateOpenHousesDto } from './dto/create-open-houses.dto';
 import { UpdateOpenHouseDto } from './dto/update-open-houses.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { randomBytes } from 'node:crypto';
+import { connect } from 'node:http2';
 
 @Injectable()
 export class OpenHousesService {
@@ -44,6 +45,13 @@ export class OpenHousesService {
   findAll() {
     return this.prisma.openHouse.findMany({
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  findAllByAgentId(id: string) {
+    return this.prisma.openHouse.findMany({
+      where: { agentId: id },
+      include: { property: true },
     });
   }
 
