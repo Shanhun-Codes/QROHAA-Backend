@@ -30,6 +30,8 @@
     "start:dev": "nest start --watch",
     "prestart:qa": "lsof -ti:3001 | xargs kill 2>/dev/null || true",
     "start:qa": "NODE_ENV=qa nest start --watch",
+    "deploy:qa": "gh workflow run .yml --ref qa && gh run watch --exit-status",
+    "deploy:qa:watch": "gh run watch --exit-status",
     "pipeline:qa": "./scripts/watch-qa.sh",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",
@@ -51,9 +53,9 @@
     "@prisma/client": "^7.10.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "prisma": "^7.10.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "prisma": "^7.10.0"
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -65,6 +67,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
     "@types/supertest": "^7.0.0",
+    "cross-env": "^10.1.0",
     "dotenv-cli": "^11.0.0",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
