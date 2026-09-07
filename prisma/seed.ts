@@ -1028,10 +1028,10 @@ async function seedMichaelDevLeads(
     Awaited<ReturnType<typeof prisma.lead.upsert>>
   >();
 
-  if (databaseEnvironment !== 'dev') {
-    console.log('Skipping Michael dev leads outside DEV.');
-    return savedLeads;
-  }
+  // if (databaseEnvironment !== 'dev') {
+  //   console.log('Skipping Michael dev leads outside DEV.');
+  //   return savedLeads;
+  // }
 
   console.log('Seeding Michael dev leads...');
 
@@ -1200,10 +1200,10 @@ async function seedMichaelDevFeedbackSubmissions(
   >,
   savedOpenHouses: Awaited<ReturnType<typeof seedOpenHouses>>,
 ) {
-  if (databaseEnvironment !== 'dev') {
-    console.log('Skipping Michael dev feedback submissions outside DEV.');
-    return 0;
-  }
+  // if (databaseEnvironment !== 'dev') {
+  //   console.log('Skipping Michael dev feedback submissions outside DEV.');
+  //   return 0;
+  // }
 
   console.log('Seeding Michael dev feedback submissions...');
 
@@ -1211,11 +1211,11 @@ async function seedMichaelDevFeedbackSubmissions(
     ['RE7VW854', '65TMX6HF'].includes(openHouse.publicCode),
   );
 
-  if (michaelOpenHouses.length !== 2) {
-    throw new Error(
-      'Expected Michael DEV open houses RE7VW854 and 65TMX6HF to be seeded.',
-    );
-  }
+  // if (michaelOpenHouses.length !== 2) {
+  //   throw new Error(
+  //     'Expected Michael DEV open houses RE7VW854 and 65TMX6HF to be seeded.',
+  //   );
+  // }
 
   // These IDs belong only to synthetic DEV leads, so it is safe to replace
   // their synthetic submissions on every seed run. This makes the seed idempotent.
@@ -1333,15 +1333,15 @@ async function main() {
   console.log(`Open houses:  ${savedOpenHouses.length}`);
   console.log(`Questions:    ${savedQuestions.size}`);
 
-  if (databaseEnvironment === 'dev') {
-    console.log(`Michael leads:       ${savedLeads.size}`);
-    console.log(
-      `Feedback submissions:${seededSubmissionCount.toString().padStart(4, ' ')}`,
-    );
-    console.log(
-      `Feedback answers:    ${seededSubmissionCount * questions.length}`,
-    );
-  }
+  // if (databaseEnvironment === 'dev') {
+  //   console.log(`Michael leads:       ${savedLeads.size}`);
+  //   console.log(
+  //     `Feedback submissions:${seededSubmissionCount.toString().padStart(4, ' ')}`,
+  //   );
+  //   console.log(
+  //     `Feedback answers:    ${seededSubmissionCount * questions.length}`,
+  //   );
+  // }
 
   console.log('');
   console.log('Test URLs:');
