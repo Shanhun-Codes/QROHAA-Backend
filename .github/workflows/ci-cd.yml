@@ -3,7 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [main, qa, dev]
-     workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   test-and-deploy:
