@@ -9,6 +9,7 @@ import { LeadsModule } from './leads/leads.module';
 import { AgentAppModule } from './agent-app/agent-app.module';
 import { PropertiesModule } from './properties/properties.module';
 import { FeedbackSubmissionsModule } from './feedback-submissions/feedback-submissions.module';
+import { NotesModule } from './notes/notes.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { FeedbackSubmissionsModule } from './feedback-submissions/feedback-submi
     FeedbackSubmissionsModule,
     LeadsModule,
     AgentAppModule,
+    NotesModule,
   ],
   providers: [PrismaService],
 })

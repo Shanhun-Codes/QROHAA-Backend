@@ -22,4 +22,8 @@ export class CreatePropertiesDto {
 
   @IsNumber()
   listingPriceCents?: number;
+
+  @IsString()
+  @IsNotEmpty()
+  agentId!: string;
 }
