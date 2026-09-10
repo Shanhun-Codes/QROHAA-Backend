@@ -2,10 +2,31 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NoteEntityType } from '../../generated/prisma/client';
 import { CreateNoteDto } from './dto/create-note.dto';
+import { UpdateNoteDto } from './dto/update-note.dto';
 
 @Injectable()
 export class NotesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async editNote(
+    agentId: string,
+    leadId: string,
+    noteId: string,
+    updateNoteDto: UpdateNoteDto,
+  ) {
+    await this.validateSubject(agentId, NoteEntityType.LEAD, leadId);
+
+    await this.prisma.note.update({
+      where: {
+        id: noteId,
+      },
+      data: {
+        body: updateNoteDto.body,
+      },
+    });
+
+    return this.findAllBySubject(agentId, NoteEntityType.LEAD, leadId);
+  }
 
   async create(
     agentId: string,
@@ -15,7 +36,7 @@ export class NotesService {
   ) {
     await this.validateSubject(agentId, subjectType, subjectId);
 
-    return this.prisma.note.create({
+    await this.prisma.note.create({
       data: {
         body: createNoteDto.body,
         subjectType,
@@ -30,7 +51,10 @@ export class NotesService {
         mentions: true,
       },
     });
+
+    return await this.findAllBySubject(agentId, subjectType, subjectId);
   }
+
   async findAllBySubject(
     agentId: string,
     subjectType: NoteEntityType,

@@ -92,7 +92,7 @@ jobs:
           TASK_ARN=$(aws ecs run-task \
             --cluster qrohaa \
             --launch-type FARGATE \
-            --task-definition qrohaa-qa-backend:6 \
+            --task-definition qrohaa-qa-backend \
             --network-configuration "awsvpcConfiguration={subnets=[${{ steps.qa-network.outputs.subnets }}],securityGroups=[${{ steps.qa-network.outputs.security_groups }}],assignPublicIp=${{ steps.qa-network.outputs.assign_public_ip }}}" \
             --overrides '{
               "containerOverrides": [

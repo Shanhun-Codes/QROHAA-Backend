@@ -1,10 +1,11 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
-import { NoteEntityType } from 'generated/prisma/enums';
+import { LeadStatusType, NoteEntityType } from 'generated/prisma/enums';
 import { AgentsService } from 'src/agents/agents.service';
 import { CreateAgentDto } from 'src/agents/dto/create-agent.dto';
-import { FeedbackQuestionsService } from 'src/feedback-questions/feedback-questions.service';
+import { CreateLeadDto } from 'src/leads/dto/create-lead.dto';
 import { LeadsService } from 'src/leads/leads.service';
 import { CreateNoteDto } from 'src/notes/dto/create-note.dto';
+import { UpdateNoteDto } from 'src/notes/dto/update-note.dto';
 import { NotesService } from 'src/notes/notes.service';
 import { CreateOpenHousesDto } from 'src/open-houses/dto/create-open-houses.dto';
 import { OpenHousesService } from 'src/open-houses/open-houses.service';
@@ -33,8 +34,16 @@ export class AgentAppController {
   }
 
   @Get('agents/:agentId/leads')
-  findAllLeadsWithSelectedFeedback(@Param('agentId') agentId: string) {
-    return this.leadsService.findAllLeadsWithSelectedFeedback(agentId);
+  findAllAgentLeads(@Param('agentId') agentId: string) {
+    return this.leadsService.findAllAgentLeads(agentId);
+  }
+
+  @Get('agents/:agentId/leads/:leadId')
+  findLeadDetail(
+    @Param('agentId') agentId: string,
+    @Param('leadId') leadId: string,
+  ) {
+    return this.leadsService.findLeadDetail(agentId, leadId);
   }
 
   @Get('agents/:agentId/open-houses')
@@ -47,7 +56,7 @@ export class AgentAppController {
     return this.propertyService.findAllAgentProperties(agentId);
   }
 
-  @Post('/agents/:idd/open-houses')
+  @Post('/agents/:id/open-houses')
   createOpenHouse(@Body() createOpenHouseDto: CreateOpenHousesDto) {
     return this.openHouseService.create(createOpenHouseDto);
   }
@@ -55,6 +64,11 @@ export class AgentAppController {
   @Post('agents')
   createAgent(@Body() createAgentDto: CreateAgentDto) {
     return this.agentsService.create(createAgentDto);
+  }
+
+  @Post('leads')
+  createLeadFromAgentApp(@Body() createLeadDto: CreateLeadDto) {
+    return this.leadsService.create(createLeadDto);
   }
 
   @Post('properties')
@@ -73,6 +87,19 @@ export class AgentAppController {
       NoteEntityType.LEAD,
       leadId,
       createNoteDto,
+    );
+  }
+
+  @Patch('agents/:agentId/leads/status')
+  updateLeadStatusFromMultiSelect(
+    @Param('agentId') agentId: string,
+    @Body('leadIds') leadIds: string[],
+    @Body('status') status: LeadStatusType,
+  ) {
+    return this.leadsService.updateLeadStatusFromMultiSelect(
+      agentId,
+      leadIds,
+      status,
     );
   }
 

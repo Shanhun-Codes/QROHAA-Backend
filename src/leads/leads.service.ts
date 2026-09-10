@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { LeadStatusType } from 'generated/prisma/enums';
 
 @Injectable()
 export class LeadsService {
@@ -27,7 +28,7 @@ export class LeadsService {
     });
   }
 
-  findAllLeadsWithSelectedFeedback(id) {
+  findLeadDetail(agentId: string, leadId: string) {
     const selectedFeedbackKeys = [
       'budget_range',
       'pre_qualified',
@@ -35,9 +36,8 @@ export class LeadsService {
       'neighborhoods',
     ];
 
-    return this.prisma.lead.findMany({
-      where: { agentId: id },
-      orderBy: { createdAt: 'desc' },
+    return this.prisma.lead.findUnique({
+      where: { agentId: agentId, id: leadId },
       select: {
         id: true,
         firstName: true,
@@ -69,10 +69,34 @@ export class LeadsService {
     });
   }
 
-  findAllAgentLeads(agentId: string) {
-    return this.prisma.lead.findMany({
-      where: { agentId: agentId },
+  async findAllAgentLeads(agentId: string) {
+    const newLeads = await this.prisma.lead.findMany({
+      where: {
+        agentId,
+        status: LeadStatusType.NEW,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
+
+    const otherLeads = await this.prisma.lead.findMany({
+      where: {
+        agentId,
+        status: {
+          notIn: [
+            LeadStatusType.NEW,
+            LeadStatusType.LOST,
+            LeadStatusType.CLOSED,
+          ],
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return [...newLeads, ...otherLeads];
   }
 
   findOne(id: string) {
@@ -97,6 +121,36 @@ export class LeadsService {
 
   remove(id: number) {
     return `This action removes a #${id} lead`;
+  }
+
+  async updateLeadStatusFromMultiSelect(
+    agentId: string,
+    leadIds: string[],
+    status: LeadStatusType,
+  ) {
+    console.log('agentId:', agentId);
+    console.log('leadIds:', leadIds);
+    console.log('status:', status);
+
+    const result = await this.prisma.lead.updateMany({
+      where: {
+        agentId,
+        id: {
+          in: leadIds,
+        },
+      },
+      data: {
+        status,
+      },
+    });
+
+    console.log('UPDATED COUNT:', result.count);
+
+    const leads = await this.findAllAgentLeads(agentId);
+
+    console.log('RETURNED LEADS:', leads);
+
+    return leads;
   }
 
   private leadRelations() {
