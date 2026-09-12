@@ -10,6 +10,9 @@ import { AgentAppModule } from './agent-app/agent-app.module';
 import { PropertiesModule } from './properties/properties.module';
 import { FeedbackSubmissionsModule } from './feedback-submissions/feedback-submissions.module';
 import { NotesModule } from './notes/notes.module';
+import { AuthModule } from './auth/auth.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 
 @Module({
   imports: [
@@ -26,7 +29,9 @@ import { NotesModule } from './notes/notes.module';
     LeadsModule,
     AgentAppModule,
     NotesModule,
+    AuthModule,
+    PrismaModule,
+    OnboardingModule,
   ],
-  providers: [PrismaService],
 })
 export class AppModule {}
