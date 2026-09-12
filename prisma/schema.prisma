@@ -18,7 +18,7 @@ model Agent {
   slug      String @unique
   firstName String
   lastName  String
-  email     String @unique
+  email     String
   phone     String
 
   brokerageName String?
@@ -38,6 +38,19 @@ model Agent {
   properties             Property[]
   leads                  Lead[]
   notes                  Note[]
+  user                   User?
+}
+
+model User {
+  id         String @id @default(cuid())
+  cognitoSub String @unique
+  email      String @unique
+
+  agentId String? @unique
+  agent   Agent?  @relation(fields: [agentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Property {

@@ -6,6 +6,7 @@ import { PropertiesModule } from 'src/properties/properties.module';
 import { AgentAppController } from './agent-app.controller';
 import { FeedbackQuestionsModule } from 'src/feedback-questions/feedback-questions.module';
 import { NotesModule } from 'src/notes/notes.module';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { NotesModule } from 'src/notes/notes.module';
     PropertiesModule,
     FeedbackQuestionsModule,
     NotesModule,
+    AuthModule,
   ],
   controllers: [AgentAppController],
 })

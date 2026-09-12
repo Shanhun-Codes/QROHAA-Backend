@@ -8,8 +8,8 @@ import { connect } from 'http2';
 export class PropertiesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(createPropertyDto: CreatePropertiesDto) {
-    return this.prisma.property.create({
+  async create(agentId: string, createPropertyDto: CreatePropertiesDto) {
+    await this.prisma.property.create({
       data: {
         street: createPropertyDto.street,
         street2: createPropertyDto.street2,
@@ -24,6 +24,7 @@ export class PropertiesService {
         },
       },
     });
+    return await this.findAllAgentProperties(agentId);
   }
 
   findAll() {

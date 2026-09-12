@@ -748,6 +748,38 @@ async function seedAgents() {
 }
 
 // ======================================================
+// SEED USERS
+// ======================================================
+
+async function seedUsers(
+  savedAgents: Map<string, Awaited<ReturnType<typeof prisma.agent.upsert>>>,
+) {
+  console.log('Seeding users...');
+
+  const michael = savedAgents.get('michael-elder');
+
+  if (!michael) {
+    throw new Error('Unable to seed user because michael-elder was not found.');
+  }
+
+  await prisma.user.upsert({
+    where: {
+      cognitoSub: '7408a488-d071-70b3-1049-3d69567cdbfe',
+    },
+    update: {
+      agentId: michael.id,
+    },
+    create: {
+      cognitoSub: '7408a488-d071-70b3-1049-3d69567cdbfe',
+      email: 'shanhun.codes@gmail.com',
+      agentId: michael.id,
+    },
+  });
+
+  console.log('  ✓ Cognito user → michael-elder');
+}
+
+// ======================================================
 // SEED PROPERTIES
 // ======================================================
 
@@ -1219,13 +1251,38 @@ async function seedMichaelDevFeedbackSubmissions(
 
   // These IDs belong only to synthetic DEV leads, so it is safe to replace
   // their synthetic submissions on every seed run. This makes the seed idempotent.
-  await prisma.feedbackSubmission.deleteMany({
+  const existingSubmissions = await prisma.feedbackSubmission.findMany({
     where: {
       leadId: {
         in: michaelDevLeads.map((lead) => lead.id),
       },
     },
+    select: {
+      id: true,
+    },
   });
+
+  const existingSubmissionIds = existingSubmissions.map(
+    (submission) => submission.id,
+  );
+
+  if (existingSubmissionIds.length) {
+    await prisma.feedbackAnswer.deleteMany({
+      where: {
+        submissionId: {
+          in: existingSubmissionIds,
+        },
+      },
+    });
+
+    await prisma.feedbackSubmission.deleteMany({
+      where: {
+        id: {
+          in: existingSubmissionIds,
+        },
+      },
+    });
+  }
 
   let submissionCount = 0;
 
@@ -1305,6 +1362,8 @@ async function main() {
   console.log('');
 
   const savedAgents = await seedAgents();
+
+  await seedUsers(savedAgents);
 
   await seedProperties(savedAgents);
 

@@ -108,8 +108,25 @@ export class FeedbackQuestionsService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-    return this.prisma.feedbackQuestion.delete({ where: { id } });
+  findAgentDefaultFeedbackQuestions(agentId: string) {
+    return this.prisma.agentFeedbackQuestion.findMany({
+      where: { agentId },
+      include: {
+        question: {
+          include: {
+            options: {
+              orderBy: {
+                sortOrder: 'asc',
+              },
+            },
+          },
+        },
+      },
+    });
   }
+
+  // async remove(id: string) {
+  //   await this.findOne(id);
+  //   return this.prisma.feedbackQuestion.delete({ where: { id } });
+  // }
 }
