@@ -128,7 +128,7 @@ export class AgentsService {
     const { primaryColor, secondaryColor, accentColor, ...agentData } =
       updateAgentDto;
 
-    return this.prisma.agent.update({
+    await this.prisma.agent.update({
       where: { id },
       data: {
         ...agentData,
@@ -143,6 +143,8 @@ export class AgentsService {
         }),
       },
     });
+
+    return this.findOne(id);
   }
 
   remove(id: number) {

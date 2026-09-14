@@ -10,8 +10,10 @@ import {
 import { LeadStatusType, NoteEntityType } from 'generated/prisma/enums';
 import { AgentsService } from 'src/agents/agents.service';
 import { CreateAgentDto } from 'src/agents/dto/create-agent.dto';
+import { UpdateAgentDto } from 'src/agents/dto/update-agent.dto';
 import { AgentAuthGuard } from 'src/auth/agent-auth.guard';
 import { CurrentAgentId } from 'src/auth/current-agent-id.decorator';
+import { UpdateAgentFeedbackQuestionDto } from 'src/feedback-questions/dto/update-agent-feedback-question.dto';
 import { FeedbackQuestionsService } from 'src/feedback-questions/feedback-questions.service';
 import { CreateLeadDto } from 'src/leads/dto/create-lead.dto';
 import { LeadsService } from 'src/leads/leads.service';
@@ -19,6 +21,7 @@ import { CreateNoteDto } from 'src/notes/dto/create-note.dto';
 import { UpdateNoteDto } from 'src/notes/dto/update-note.dto';
 import { NotesService } from 'src/notes/notes.service';
 import { CreateOpenHousesDto } from 'src/open-houses/dto/create-open-houses.dto';
+import { UpdateOpenHouseDto } from 'src/open-houses/dto/update-open-houses.dto';
 import { OpenHousesService } from 'src/open-houses/open-houses.service';
 import { CreatePropertiesDto } from 'src/properties/dto/create-properties.dto';
 import { PropertiesService } from 'src/properties/properties.service';
@@ -57,6 +60,14 @@ export class AgentAppController {
   @Post('agents')
   createAgent(@Body() createAgentDto: CreateAgentDto) {
     return this.agentsService.create(createAgentDto);
+  }
+
+  @Patch('agents')
+  updateAgent(
+    @CurrentAgentId() agentId: string,
+    @Body() updateAgentDto: UpdateAgentDto,
+  ) {
+    return this.agentsService.update(agentId, updateAgentDto);
   }
 
   // ======================================================
@@ -179,8 +190,24 @@ export class AgentAppController {
   }
 
   @Post('open-houses')
-  createOpenHouse(@Body() createOpenHouseDto: CreateOpenHousesDto) {
-    return this.openHouseService.create(createOpenHouseDto);
+  createOpenHouse(
+    @CurrentAgentId() agentId: string,
+    @Body() createOpenHouseDto: CreateOpenHousesDto,
+  ) {
+    return this.openHouseService.create(agentId, createOpenHouseDto);
+  }
+
+  @Patch('open-houses/:openHouseId')
+  updateOpenHouse(
+    @CurrentAgentId() agentId: string,
+    @Param('openHouseId') openHouseId: string,
+    @Body() updateOpenHouseDto: UpdateOpenHouseDto,
+  ) {
+    return this.openHouseService.update(
+      agentId,
+      openHouseId,
+      updateOpenHouseDto,
+    );
   }
 
   // ======================================================
@@ -214,6 +241,17 @@ export class AgentAppController {
   getAgentFeedbackQuestions(@CurrentAgentId() agentId: string) {
     return this.feedbackQuestionService.findAgentDefaultFeedbackQuestions(
       agentId,
+    );
+  }
+
+  @Patch('feedback-questions/defaults')
+  updateAgentFeedbackQuestions(
+    @CurrentAgentId() agentId: string,
+    @Body() questions: UpdateAgentFeedbackQuestionDto[],
+  ) {
+    return this.feedbackQuestionService.updateAgentQuestions(
+      agentId,
+      questions,
     );
   }
 }

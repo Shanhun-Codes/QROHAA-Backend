@@ -9,34 +9,80 @@ import { connect } from 'node:http2';
 export class OpenHousesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createOpenHouseDto: CreateOpenHousesDto) {
+  async create(agentId: string, createOpenHouseDto: CreateOpenHousesDto) {
     const publicCode = await this.generateUniquePublicCode();
+
+    const property = await this.prisma.property.findFirst({
+      where: {
+        id: createOpenHouseDto.propertyId,
+        agentId,
+      },
+    });
+
+    if (!property) {
+      throw new BadRequestException(
+        'The selected property does not belong to this agent.',
+      );
+    }
+
     const selectedQuestions = await this.prisma.agentFeedbackQuestion.findMany({
       where: {
-        agentId: createOpenHouseDto.agentId,
-        question: { active: true },
+        agentId,
+        active: true,
+        question: {
+          active: true,
+        },
       },
-      select: { questionId: true, required: true, sortOrder: true },
+      select: {
+        questionId: true,
+        required: true,
+        sortOrder: true,
+      },
+      orderBy: {
+        sortOrder: 'asc',
+      },
     });
+
     if (!selectedQuestions.length) {
       throw new BadRequestException(
         'The agent must have active feedback questions before creating an open house.',
       );
     }
+
     return this.prisma.$transaction((transaction) =>
       transaction.openHouse.create({
         data: {
           publicCode,
           startsAt: createOpenHouseDto.startsAt,
           endsAt: createOpenHouseDto.endsAt,
-          agent: { connect: { id: createOpenHouseDto.agentId } },
-          property: { connect: { id: createOpenHouseDto.propertyId } },
+
+          agent: {
+            connect: {
+              id: agentId,
+            },
+          },
+
+          property: {
+            connect: {
+              id: createOpenHouseDto.propertyId,
+            },
+          },
+
           openHouseFeedbackQuestions: {
-            createMany: { data: selectedQuestions },
+            createMany: {
+              data: selectedQuestions,
+            },
           },
         },
+
         include: {
-          openHouseFeedbackQuestions: { orderBy: { sortOrder: 'asc' } },
+          property: true,
+
+          openHouseFeedbackQuestions: {
+            orderBy: {
+              sortOrder: 'asc',
+            },
+          },
         },
       }),
     );
@@ -50,6 +96,7 @@ export class OpenHousesService {
 
   findAllByAgentId(id: string) {
     return this.prisma.openHouse.findMany({
+      orderBy: { startsAt: 'desc' },
       where: { agentId: id },
       include: { property: true },
     });
@@ -59,8 +106,58 @@ export class OpenHousesService {
     return `This action returns a #${id} openHouse`;
   }
 
-  update(id: number, updateOpenHouseDto: UpdateOpenHouseDto) {
-    return `This action updates a #${id} openHouse`;
+  async update(
+    agentId: string,
+    openHouseId: string,
+    updateOpenHouseDto: UpdateOpenHouseDto,
+  ) {
+    const openHouse = await this.prisma.openHouse.findFirst({
+      where: {
+        id: openHouseId,
+        agentId,
+      },
+    });
+
+    if (!openHouse) {
+      throw new BadRequestException('Open house not found for this agent.');
+    }
+
+    if (updateOpenHouseDto.propertyId) {
+      const property = await this.prisma.property.findFirst({
+        where: {
+          id: updateOpenHouseDto.propertyId,
+          agentId,
+        },
+      });
+
+      if (!property) {
+        throw new BadRequestException(
+          'The selected property does not belong to this agent.',
+        );
+      }
+    }
+
+    return this.prisma.openHouse.update({
+      where: {
+        id: openHouseId,
+      },
+
+      data: {
+        propertyId: updateOpenHouseDto.propertyId,
+        startsAt: updateOpenHouseDto.startsAt,
+        endsAt: updateOpenHouseDto.endsAt,
+      },
+
+      include: {
+        property: true,
+
+        openHouseFeedbackQuestions: {
+          orderBy: {
+            sortOrder: 'asc',
+          },
+        },
+      },
+    });
   }
 
   remove(id: number) {

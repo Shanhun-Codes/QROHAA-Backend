@@ -9,7 +9,7 @@ export class PropertiesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(agentId: string, createPropertyDto: CreatePropertiesDto) {
-    await this.prisma.property.create({
+    return this.prisma.property.create({
       data: {
         street: createPropertyDto.street,
         street2: createPropertyDto.street2,
@@ -17,14 +17,14 @@ export class PropertiesService {
         state: createPropertyDto.state,
         zip: createPropertyDto.zip,
         listingPriceCents: createPropertyDto.listingPriceCents,
+
         agent: {
           connect: {
-            id: createPropertyDto.agentId,
+            id: agentId,
           },
         },
       },
     });
-    return await this.findAllAgentProperties(agentId);
   }
 
   findAll() {
