@@ -44,8 +44,18 @@ export class PropertiesService {
     return this.prisma.property.findUnique({ where: { id } });
   }
 
-  update(id: number, updatePropertyDto: UpdatePropertiesDto) {
-    return `This action updates a #${id} property`;
+  update(
+    agentId: string,
+    propertyId: string,
+    updatePropertyDto: UpdatePropertiesDto,
+  ) {
+    return this.prisma.property.update({
+      where: {
+        id: propertyId,
+        agentId,
+      },
+      data: updatePropertyDto,
+    });
   }
 
   remove(id: number) {
