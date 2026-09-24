@@ -15,4 +15,12 @@ export class UpdateAgentFeedbackQuestionDto {
   @IsOptional()
   @IsInt()
   sortOrder?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  printable?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  printableSortOrder?: number;
 }

@@ -128,10 +128,6 @@ export class LeadsService {
     leadIds: string[],
     status: LeadStatusType,
   ) {
-    console.log('agentId:', agentId);
-    console.log('leadIds:', leadIds);
-    console.log('status:', status);
-
     const result = await this.prisma.lead.updateMany({
       where: {
         agentId,

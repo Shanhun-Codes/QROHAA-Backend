@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -189,6 +190,14 @@ export class AgentAppController {
     return this.openHouseService.findAllByAgentId(agentId);
   }
 
+  @Get('open-houses/:openHouseId')
+  getOpenHouseDetail(
+    @CurrentAgentId() agentId: string,
+    @Param('openHouseId') openHouseId: string,
+  ) {
+    return this.openHouseService.findOpenHouseDetail(agentId, openHouseId);
+  }
+
   @Post('open-houses')
   createOpenHouse(
     @CurrentAgentId() agentId: string,
@@ -208,6 +217,14 @@ export class AgentAppController {
       openHouseId,
       updateOpenHouseDto,
     );
+  }
+
+  @Delete('open-houses')
+  removeBulkOpenHouses(
+    @CurrentAgentId() agentId: string,
+    @Body() openHouseIds: string[],
+  ) {
+    return this.openHouseService.removeBulk(agentId, openHouseIds);
   }
 
   // ======================================================

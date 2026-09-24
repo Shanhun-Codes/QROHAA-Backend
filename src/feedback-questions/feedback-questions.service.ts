@@ -95,6 +95,8 @@ export class FeedbackQuestionsService {
             active: question.active,
             required: question.required,
             sortOrder: question.sortOrder,
+            printable: question.printable,
+            printableSortOrder: question.printableSortOrder,
           },
           create: {
             agentId,
