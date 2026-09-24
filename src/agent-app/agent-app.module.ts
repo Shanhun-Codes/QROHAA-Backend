@@ -7,6 +7,7 @@ import { AgentAppController } from './agent-app.controller';
 import { FeedbackQuestionsModule } from 'src/feedback-questions/feedback-questions.module';
 import { NotesModule } from 'src/notes/notes.module';
 import { AuthModule } from 'src/auth/auth.module';
+import { StorageModule } from 'src/storage/storage.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AuthModule } from 'src/auth/auth.module';
     FeedbackQuestionsModule,
     NotesModule,
     AuthModule,
+    StorageModule,
   ],
   controllers: [AgentAppController],
 })

@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
 import { OpenHousesService } from './open-houses.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { OpenHousePdfService } from './open-house-pdf.service';
+import { AgentsModule } from 'src/agents/agents.module';
 
 @Module({
+  imports: [AgentsModule],
   controllers: [],
-  providers: [OpenHousesService, PrismaService],
-  exports: [OpenHousesService],
+  providers: [OpenHousesService, PrismaService, OpenHousePdfService],
+  exports: [OpenHousesService, OpenHousePdfService],
 })
 export class OpenHousesModule {}

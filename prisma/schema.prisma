@@ -138,6 +138,9 @@ model AgentFeedbackQuestion {
   required   Boolean @default(false)
   sortOrder  Int
 
+  printable          Boolean @default(false)
+  printableSortOrder Int?
+
   agent    Agent            @relation(fields: [agentId], references: [id])
   question FeedbackQuestion @relation(fields: [questionId], references: [id])
 
@@ -159,8 +162,10 @@ model OpenHouseFeedbackQuestion {
   openHouseId String
   questionId  String
 
-  required  Boolean
-  sortOrder Int
+  required           Boolean
+  sortOrder          Int
+  printable          Boolean @default(false)
+  printableSortOrder Int?
 
   openHouse OpenHouse        @relation(fields: [openHouseId], references: [id])
   question  FeedbackQuestion @relation(fields: [questionId], references: [id])

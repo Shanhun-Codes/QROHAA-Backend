@@ -84,11 +84,7 @@ export class LeadsService {
       where: {
         agentId,
         status: {
-          notIn: [
-            LeadStatusType.NEW,
-            LeadStatusType.LOST,
-            LeadStatusType.CLOSED,
-          ],
+          notIn: [LeadStatusType.NEW, LeadStatusType.LOST],
         },
       },
       orderBy: {
@@ -128,10 +124,6 @@ export class LeadsService {
     leadIds: string[],
     status: LeadStatusType,
   ) {
-    console.log('agentId:', agentId);
-    console.log('leadIds:', leadIds);
-    console.log('status:', status);
-
     const result = await this.prisma.lead.updateMany({
       where: {
         agentId,

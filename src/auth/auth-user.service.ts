@@ -1,10 +1,14 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { AgentsService } from 'src/agents/agents.service';
 
 @Injectable()
 export class AuthUserService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private agentsService: AgentsService,
+  ) {}
 
   async getAgentByCognitoSub(cognitoSub: string) {
     const user = await this.prisma.user.findUnique({
@@ -30,7 +34,7 @@ export class AuthUserService {
   }
 
   async getUserByCognitoSub(cognitoSub: string) {
-    return this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: {
         cognitoSub,
       },
@@ -38,5 +42,16 @@ export class AuthUserService {
         agent: true,
       },
     });
+
+    if (!user?.agent) {
+      return user;
+    }
+
+    const agent = await this.agentsService.findOne(user.agent.id);
+
+    return {
+      ...user,
+      agent,
+    };
   }
 }

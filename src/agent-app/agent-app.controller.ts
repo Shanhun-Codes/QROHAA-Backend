@@ -1,17 +1,22 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { LeadStatusType, NoteEntityType } from 'generated/prisma/enums';
 import { AgentsService } from 'src/agents/agents.service';
+import type { Response } from 'express';
 import { CreateAgentDto } from 'src/agents/dto/create-agent.dto';
+import { UpdateAgentDto } from 'src/agents/dto/update-agent.dto';
 import { AgentAuthGuard } from 'src/auth/agent-auth.guard';
 import { CurrentAgentId } from 'src/auth/current-agent-id.decorator';
+import { UpdateAgentFeedbackQuestionDto } from 'src/feedback-questions/dto/update-agent-feedback-question.dto';
 import { FeedbackQuestionsService } from 'src/feedback-questions/feedback-questions.service';
 import { CreateLeadDto } from 'src/leads/dto/create-lead.dto';
 import { LeadsService } from 'src/leads/leads.service';
@@ -19,9 +24,14 @@ import { CreateNoteDto } from 'src/notes/dto/create-note.dto';
 import { UpdateNoteDto } from 'src/notes/dto/update-note.dto';
 import { NotesService } from 'src/notes/notes.service';
 import { CreateOpenHousesDto } from 'src/open-houses/dto/create-open-houses.dto';
+import { UpdateOpenHouseDto } from 'src/open-houses/dto/update-open-houses.dto';
+import { OpenHousePdfService } from 'src/open-houses/open-house-pdf.service';
 import { OpenHousesService } from 'src/open-houses/open-houses.service';
 import { CreatePropertiesDto } from 'src/properties/dto/create-properties.dto';
 import { PropertiesService } from 'src/properties/properties.service';
+import { CreateAgentUploadUrlDto } from 'src/storage/dto/create-agent-upload-url.dto';
+import { StorageService } from 'src/storage/storage.service';
+import { CompleteAgentUploadDto } from 'src/storage/dto/complete-agent-upload.dto';
 
 @UseGuards(AgentAuthGuard)
 @Controller('agent-app')
@@ -33,6 +43,8 @@ export class AgentAppController {
     private readonly propertyService: PropertiesService,
     private readonly notesService: NotesService,
     private readonly feedbackQuestionService: FeedbackQuestionsService,
+    private readonly openHousePdfService: OpenHousePdfService,
+    private readonly storageService: StorageService,
   ) {}
 
   // ======================================================
@@ -57,6 +69,34 @@ export class AgentAppController {
   @Post('agents')
   createAgent(@Body() createAgentDto: CreateAgentDto) {
     return this.agentsService.create(createAgentDto);
+  }
+
+  @Patch('agents')
+  updateAgent(
+    @CurrentAgentId() agentId: string,
+    @Body() updateAgentDto: UpdateAgentDto,
+  ) {
+    return this.agentsService.update(agentId, updateAgentDto);
+  }
+
+  @Post('assets/upload-url')
+  createAgentAssetUploadUrl(
+    @CurrentAgentId() agentId: string,
+    @Body() dto: CreateAgentUploadUrlDto,
+  ) {
+    return this.storageService.createAgentUploadUrl(
+      agentId,
+      dto.type,
+      dto.contentType,
+    );
+  }
+
+  @Post('assets/complete')
+  async completeAgentAssetUpload(
+    @CurrentAgentId() agentId: string,
+    @Body() dto: CompleteAgentUploadDto,
+  ) {
+    return this.agentsService.completeAssetUpload(agentId, dto.type, dto.key);
   }
 
   // ======================================================
@@ -178,9 +218,81 @@ export class AgentAppController {
     return this.openHouseService.findAllByAgentId(agentId);
   }
 
+  @Get('open-houses/:openHouseId/feedback-form/pdf')
+  async downloadOpenHouseFeedbackForm(
+    @CurrentAgentId() agentId: string,
+    @Param('openHouseId') openHouseId: string,
+    @Res() response: Response,
+  ) {
+    const pdf = await this.openHousePdfService.generateFeedbackForm(
+      agentId,
+      openHouseId,
+    );
+
+    response.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="open-house-feedback-form.pdf"`,
+      'Content-Length': pdf.length,
+    });
+
+    response.end(pdf);
+  }
+
+  @Get('open-houses/:openHouseId/flyer/pdf')
+  async downloadOpenHouseFlyer(
+    @CurrentAgentId() agentId: string,
+    @Param('openHouseId') openHouseId: string,
+    @Res() response: Response,
+  ) {
+    const pdf = await this.openHousePdfService.generateFlyer(
+      agentId,
+      openHouseId,
+    );
+
+    response.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'attachment; filename="open-house-flyer.pdf"',
+      'Content-Length': pdf.length,
+    });
+
+    response.end(pdf);
+  }
+
+  @Get('open-houses/:openHouseId')
+  getOpenHouseDetail(
+    @CurrentAgentId() agentId: string,
+    @Param('openHouseId') openHouseId: string,
+  ) {
+    return this.openHouseService.findOpenHouseDetail(agentId, openHouseId);
+  }
+
   @Post('open-houses')
-  createOpenHouse(@Body() createOpenHouseDto: CreateOpenHousesDto) {
-    return this.openHouseService.create(createOpenHouseDto);
+  createOpenHouse(
+    @CurrentAgentId() agentId: string,
+    @Body() createOpenHouseDto: CreateOpenHousesDto,
+  ) {
+    return this.openHouseService.create(agentId, createOpenHouseDto);
+  }
+
+  @Patch('open-houses/:openHouseId')
+  updateOpenHouse(
+    @CurrentAgentId() agentId: string,
+    @Param('openHouseId') openHouseId: string,
+    @Body() updateOpenHouseDto: UpdateOpenHouseDto,
+  ) {
+    return this.openHouseService.update(
+      agentId,
+      openHouseId,
+      updateOpenHouseDto,
+    );
+  }
+
+  @Delete('open-houses')
+  removeBulkOpenHouses(
+    @CurrentAgentId() agentId: string,
+    @Body() openHouseIds: string[],
+  ) {
+    return this.openHouseService.removeBulk(agentId, openHouseIds);
   }
 
   // ======================================================
@@ -214,6 +326,17 @@ export class AgentAppController {
   getAgentFeedbackQuestions(@CurrentAgentId() agentId: string) {
     return this.feedbackQuestionService.findAgentDefaultFeedbackQuestions(
       agentId,
+    );
+  }
+
+  @Patch('feedback-questions/defaults')
+  updateAgentFeedbackQuestions(
+    @CurrentAgentId() agentId: string,
+    @Body() questions: UpdateAgentFeedbackQuestionDto[],
+  ) {
+    return this.feedbackQuestionService.updateAgentQuestions(
+      agentId,
+      questions,
     );
   }
 }

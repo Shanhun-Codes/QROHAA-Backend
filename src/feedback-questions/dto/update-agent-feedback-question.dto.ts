@@ -1,6 +1,9 @@
-import { IsBoolean, IsOptional } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString } from 'class-validator';
 
 export class UpdateAgentFeedbackQuestionDto {
+  @IsString()
+  questionId!: string;
+
   @IsOptional()
   @IsBoolean()
   active?: boolean;
@@ -8,4 +11,16 @@ export class UpdateAgentFeedbackQuestionDto {
   @IsOptional()
   @IsBoolean()
   required?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  printable?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  printableSortOrder?: number;
 }

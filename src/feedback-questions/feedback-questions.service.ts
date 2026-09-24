@@ -78,39 +78,47 @@ export class FeedbackQuestionsService {
     });
   }
 
-  async updateAgentQuestion(
+  async updateAgentQuestions(
     agentId: string,
-    questionId: string,
-    dto: UpdateAgentFeedbackQuestionDto,
+    questions: UpdateAgentFeedbackQuestionDto[],
   ) {
-    return this.prisma.agentFeedbackQuestion.update({
-      where: {
-        agentId_questionId: {
-          agentId,
-          questionId,
-        },
-      },
-      data: {
-        active: dto.active,
-        required: dto.required,
-      },
-      include: {
-        question: {
-          include: {
-            options: {
-              orderBy: {
-                sortOrder: 'asc',
-              },
+    await this.prisma.$transaction(
+      questions.map((question) =>
+        this.prisma.agentFeedbackQuestion.upsert({
+          where: {
+            agentId_questionId: {
+              agentId,
+              questionId: question.questionId,
             },
           },
-        },
-      },
-    });
+          update: {
+            active: question.active,
+            required: question.required,
+            sortOrder: question.sortOrder,
+            printable: question.printable,
+            printableSortOrder: question.printableSortOrder,
+          },
+          create: {
+            agentId,
+            questionId: question.questionId,
+            active: question.active,
+            required: question.required,
+            sortOrder: question.sortOrder!,
+          },
+        }),
+      ),
+    );
+
+    return this.findAgentDefaultFeedbackQuestions(agentId);
   }
 
   findAgentDefaultFeedbackQuestions(agentId: string) {
     return this.prisma.agentFeedbackQuestion.findMany({
-      where: { agentId },
+      where: {
+        agentId,
+        active: true,
+      },
+
       include: {
         question: {
           include: {
@@ -121,6 +129,10 @@ export class FeedbackQuestionsService {
             },
           },
         },
+      },
+
+      orderBy: {
+        sortOrder: 'asc',
       },
     });
   }

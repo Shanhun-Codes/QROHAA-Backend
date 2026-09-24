@@ -4,8 +4,10 @@ import { CognitoAuthGuard } from './cognito-auth.guard';
 import { CognitoAuthService } from './cognito-auth.service';
 import { AuthUserService } from './auth-user.service';
 import { AgentAuthGuard } from './agent-auth.guard';
+import { AgentsModule } from 'src/agents/agents.module';
 
 @Module({
+  imports: [AgentsModule],
   providers: [
     CognitoAuthService,
     CognitoAuthGuard,
