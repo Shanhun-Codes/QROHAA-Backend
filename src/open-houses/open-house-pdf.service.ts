@@ -39,8 +39,8 @@ export class OpenHousePdfService {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      const primaryColor = openHouse.agent.primaryColor ?? '#111820';
-      const secondaryColor = openHouse.agent.secondaryColor ?? '#7f1d1d';
+      const primaryColor = openHouse.agent!.primaryColor ?? '#111820';
+      const secondaryColor = openHouse.agent!.secondaryColor ?? '#7f1d1d';
 
       const pageLeft = 48;
       const pageRight = 564;
@@ -93,12 +93,12 @@ export class OpenHousePdfService {
           width: 335,
         });
 
-      if (openHouse.agent.brokerageName) {
+      if (openHouse.agent!.brokerageName) {
         doc
           .font('Helvetica-Bold')
           .fontSize(10)
           .fillColor(primaryColor)
-          .text(openHouse.agent.brokerageName, 390, 59, {
+          .text(openHouse.agent!.brokerageName, 390, 59, {
             width: pageRight - 390,
             align: 'right',
           });
@@ -188,7 +188,7 @@ export class OpenHousePdfService {
         .lineTo(pageRight, footerY)
         .stroke();
 
-      const agentName = `${openHouse.agent.firstName} ${openHouse.agent.lastName}`;
+      const agentName = `${openHouse.agent!.firstName} ${openHouse.agent!.lastName}`;
 
       doc
         .font('Helvetica-Bold')
@@ -196,12 +196,12 @@ export class OpenHousePdfService {
         .fillColor(primaryColor)
         .text(agentName, pageLeft, footerY + 9);
 
-      if (openHouse.agent.brokerageName) {
+      if (openHouse.agent!.brokerageName) {
         doc
           .font('Helvetica')
           .fontSize(8.5)
           .fillColor('#697077')
-          .text(openHouse.agent.brokerageName, pageLeft, footerY + 23);
+          .text(openHouse.agent!.brokerageName, pageLeft, footerY + 23);
       }
 
       doc.end();
@@ -571,10 +571,9 @@ export class OpenHousePdfService {
       openHouseId,
     );
 
-    if (!openHouse) {
+    if (!openHouse || !openHouse.agent) {
       throw new NotFoundException('Open house not found.');
     }
-
     const publicBaseUrl =
       this.configService.getOrThrow<string>('PUBLIC_BASE_URL');
 
@@ -590,6 +589,11 @@ export class OpenHousePdfService {
       margin: 1,
     });
 
+    const [headshotBuffer, logoBuffer] = await Promise.all([
+      this.fetchImage(openHouse.agent.headshotUrl),
+      this.fetchImage(openHouse.agent.logoUrl),
+    ]);
+
     return new Promise<Buffer>((resolve, reject) => {
       const doc = new PDFDocument({
         size: 'LETTER',
@@ -603,9 +607,9 @@ export class OpenHousePdfService {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      const primaryColor = openHouse.agent.primaryColor ?? '#111820';
+      const primaryColor = openHouse.agent!.primaryColor ?? '#111820';
 
-      const secondaryColor = openHouse.agent.secondaryColor ?? '#7f1d1d';
+      const secondaryColor = openHouse.agent!.secondaryColor ?? '#7f1d1d';
 
       const pageWidth = 612;
       const pageHeight = 792;
@@ -616,12 +620,16 @@ export class OpenHousePdfService {
 
       doc.rect(0, 0, pageWidth, 92).fill(primaryColor);
 
-      if (openHouse.agent.brokerageName) {
+      if (logoBuffer) {
+        doc.image(logoBuffer, 42, 20, {
+          fit: [160, 52],
+        });
+      } else if (openHouse.agent!.brokerageName) {
         doc
           .font('Helvetica-Bold')
           .fontSize(12)
           .fillColor('#ffffff')
-          .text(openHouse.agent.brokerageName, 42, 38, {
+          .text(openHouse.agent!.brokerageName, 42, 38, {
             width: 250,
           });
       }
@@ -774,14 +782,47 @@ export class OpenHousePdfService {
 
       doc.rect(0, footerY, pageWidth, 6).fill(secondaryColor);
 
-      const agentName = `${openHouse.agent.firstName} ${openHouse.agent.lastName}`;
+      if (headshotBuffer) {
+        const headshotSize = 90;
+        const headshotX = 42;
+        const headshotY = footerY + 24;
+
+        // Circular image
+        doc.save();
+
+        doc
+          .circle(
+            headshotX + headshotSize / 2,
+            headshotY + headshotSize / 2,
+            headshotSize / 2,
+          )
+          .clip();
+
+        doc.image(headshotBuffer, headshotX, headshotY, {
+          cover: [headshotSize, headshotSize],
+        });
+
+        doc.restore();
+
+        // Border
+        doc
+          .circle(
+            headshotX + headshotSize / 2,
+            headshotY + headshotSize / 2,
+            headshotSize / 2,
+          )
+          .lineWidth(1)
+          .strokeColor('#ffffff')
+          .stroke();
+      }
+      const agentName = `${openHouse.agent!.firstName} ${openHouse.agent!.lastName}`;
 
       doc
         .font('Helvetica-Bold')
         .fontSize(8)
         .fillColor('#ffffff')
         .opacity(0.7)
-        .text('HOSTED BY', 42, footerY + 31, {
+        .text('HOSTED BY', 150, footerY + 31, {
           characterSpacing: 1.5,
         });
 
@@ -790,40 +831,40 @@ export class OpenHousePdfService {
         .font('Helvetica-Bold')
         .fontSize(17)
         .fillColor('#ffffff')
-        .text(agentName, 42, footerY + 47, {
+        .text(agentName, 150, footerY + 47, {
           width: 280,
         });
 
       let agentY = footerY + 70;
 
-      if (openHouse.agent.brokerageName) {
+      if (openHouse.agent!.brokerageName) {
         doc
           .font('Helvetica-Bold')
           .fontSize(10)
           .fillColor('#ffffff')
-          .text(openHouse.agent.brokerageName, 42, agentY);
+          .text(openHouse.agent!.brokerageName, 150, agentY);
 
         agentY += 16;
       }
 
-      if (openHouse.agent.phone) {
+      if (openHouse.agent!.phone) {
         doc
           .font('Helvetica')
           .fontSize(9)
           .fillColor('#ffffff')
           .opacity(0.85)
-          .text(this.formatPhone(openHouse.agent.phone), 42, agentY);
+          .text(this.formatPhone(openHouse.agent!.phone), 150, agentY);
 
         agentY += 14;
       }
 
-      if (openHouse.agent.email) {
+      if (openHouse.agent!.email) {
         doc
           .font('Helvetica')
           .fontSize(9)
           .fillColor('#ffffff')
           .opacity(0.85)
-          .text(openHouse.agent.email, 42, agentY, {
+          .text(openHouse.agent!.email, 150, agentY, {
             width: 280,
           });
       }
@@ -886,5 +927,27 @@ export class OpenHousePdfService {
     }
 
     return `(${normalized.slice(0, 3)}) ${normalized.slice(3, 6)}-${normalized.slice(6)}`;
+  }
+
+  private async fetchImage(
+    url: string | null | undefined,
+  ): Promise<Buffer | null> {
+    if (!url) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+
+      return Buffer.from(arrayBuffer);
+    } catch {
+      return null;
+    }
   }
 }

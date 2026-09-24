@@ -3,10 +3,14 @@ import { CreateOpenHousesDto } from './dto/create-open-houses.dto';
 import { UpdateOpenHouseDto } from './dto/update-open-houses.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { randomBytes } from 'node:crypto';
+import { AgentsService } from 'src/agents/agents.service';
 
 @Injectable()
 export class OpenHousesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly agentsService: AgentsService,
+  ) {}
 
   async create(agentId: string, createOpenHouseDto: CreateOpenHousesDto) {
     const publicCode = await this.generateUniquePublicCode();
@@ -119,8 +123,8 @@ export class OpenHousesService {
     });
   }
 
-  findOpenHouseDetail(agentId: string, openhouseId: string) {
-    return this.prisma.openHouse.findUnique({
+  async findOpenHouseDetail(agentId: string, openhouseId: string) {
+    const openHouse = await this.prisma.openHouse.findUnique({
       where: {
         id: openhouseId,
         agentId,
@@ -176,6 +180,17 @@ export class OpenHousesService {
         },
       },
     });
+
+    if (!openHouse) {
+      return null;
+    }
+
+    const agent = await this.agentsService.findOne(openHouse.agent.id);
+
+    return {
+      ...openHouse,
+      agent,
+    };
   }
 
   async update(

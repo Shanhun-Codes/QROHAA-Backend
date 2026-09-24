@@ -7,10 +7,14 @@ import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AgentFeedbackQuestionSelectionDto } from './dto/replace-agent-feedback-questions.dto';
+import { StorageService } from 'src/storage/storage.service';
 
 @Injectable()
 export class AgentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+  ) {}
 
   async create(createAgentDto: CreateAgentDto) {
     const slug = await this.generateUniqueSlug(
@@ -59,10 +63,16 @@ export class AgentsService {
     });
   }
 
-  findOne(id: string) {
-    return this.prisma.agent.findUnique({
+  async findOne(id: string) {
+    const agent = await this.prisma.agent.findUnique({
       where: { id },
     });
+
+    if (!agent) {
+      return null;
+    }
+
+    return this.withAssetUrls(agent);
   }
 
   async getFeedbackQuestions(agentId: string) {
@@ -186,5 +196,61 @@ export class AgentsService {
   private normalizeHexColor(color?: string): string | null {
     if (!color) return null;
     return color.startsWith('#') ? color : `#${color}`;
+  }
+
+  async completeAssetUpload(
+    agentId: string,
+    type: 'headshot' | 'logo',
+    key: string,
+  ) {
+    if (!this.storageService.validateAgentAssetKey(agentId, type, key)) {
+      throw new BadRequestException('Invalid asset key.');
+    }
+
+    const agent = await this.prisma.agent.findUnique({
+      where: {
+        id: agentId,
+      },
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Agent not found.');
+    }
+
+    const previousKey = type === 'headshot' ? agent.headshotUrl : agent.logoUrl;
+
+    const updatedAgent = await this.prisma.agent.update({
+      where: {
+        id: agentId,
+      },
+      data: type === 'headshot' ? { headshotUrl: key } : { logoUrl: key },
+    });
+
+    if (previousKey && previousKey !== key) {
+      await this.storageService.delete(previousKey);
+    }
+
+    return this.withAssetUrls(updatedAgent);
+  }
+
+  private async withAssetUrls<
+    T extends {
+      logoUrl: string | null;
+      headshotUrl: string | null;
+    },
+  >(agent: T): Promise<T> {
+    const [logoUrl, headshotUrl] = await Promise.all([
+      agent.logoUrl ? this.storageService.createReadUrl(agent.logoUrl) : null,
+
+      agent.headshotUrl
+        ? this.storageService.createReadUrl(agent.headshotUrl)
+        : null,
+    ]);
+
+    return {
+      ...agent,
+      logoUrl,
+      headshotUrl,
+    };
   }
 }

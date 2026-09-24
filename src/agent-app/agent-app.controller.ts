@@ -29,6 +29,9 @@ import { OpenHousePdfService } from 'src/open-houses/open-house-pdf.service';
 import { OpenHousesService } from 'src/open-houses/open-houses.service';
 import { CreatePropertiesDto } from 'src/properties/dto/create-properties.dto';
 import { PropertiesService } from 'src/properties/properties.service';
+import { CreateAgentUploadUrlDto } from 'src/storage/dto/create-agent-upload-url.dto';
+import { StorageService } from 'src/storage/storage.service';
+import { CompleteAgentUploadDto } from 'src/storage/dto/complete-agent-upload.dto';
 
 @UseGuards(AgentAuthGuard)
 @Controller('agent-app')
@@ -41,6 +44,7 @@ export class AgentAppController {
     private readonly notesService: NotesService,
     private readonly feedbackQuestionService: FeedbackQuestionsService,
     private readonly openHousePdfService: OpenHousePdfService,
+    private readonly storageService: StorageService,
   ) {}
 
   // ======================================================
@@ -73,6 +77,26 @@ export class AgentAppController {
     @Body() updateAgentDto: UpdateAgentDto,
   ) {
     return this.agentsService.update(agentId, updateAgentDto);
+  }
+
+  @Post('assets/upload-url')
+  createAgentAssetUploadUrl(
+    @CurrentAgentId() agentId: string,
+    @Body() dto: CreateAgentUploadUrlDto,
+  ) {
+    return this.storageService.createAgentUploadUrl(
+      agentId,
+      dto.type,
+      dto.contentType,
+    );
+  }
+
+  @Post('assets/complete')
+  async completeAgentAssetUpload(
+    @CurrentAgentId() agentId: string,
+    @Body() dto: CompleteAgentUploadDto,
+  ) {
+    return this.agentsService.completeAssetUpload(agentId, dto.type, dto.key);
   }
 
   // ======================================================

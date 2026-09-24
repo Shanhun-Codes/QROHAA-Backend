@@ -13,6 +13,7 @@ import { NotesModule } from './notes/notes.module';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
     AuthModule,
     PrismaModule,
     OnboardingModule,
+    StorageModule,
   ],
 })
 export class AppModule {}
