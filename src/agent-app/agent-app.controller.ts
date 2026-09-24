@@ -6,10 +6,12 @@ import {
   Param,
   Patch,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { LeadStatusType, NoteEntityType } from 'generated/prisma/enums';
 import { AgentsService } from 'src/agents/agents.service';
+import type { Response } from 'express';
 import { CreateAgentDto } from 'src/agents/dto/create-agent.dto';
 import { UpdateAgentDto } from 'src/agents/dto/update-agent.dto';
 import { AgentAuthGuard } from 'src/auth/agent-auth.guard';
@@ -23,6 +25,7 @@ import { UpdateNoteDto } from 'src/notes/dto/update-note.dto';
 import { NotesService } from 'src/notes/notes.service';
 import { CreateOpenHousesDto } from 'src/open-houses/dto/create-open-houses.dto';
 import { UpdateOpenHouseDto } from 'src/open-houses/dto/update-open-houses.dto';
+import { OpenHousePdfService } from 'src/open-houses/open-house-pdf.service';
 import { OpenHousesService } from 'src/open-houses/open-houses.service';
 import { CreatePropertiesDto } from 'src/properties/dto/create-properties.dto';
 import { PropertiesService } from 'src/properties/properties.service';
@@ -37,6 +40,7 @@ export class AgentAppController {
     private readonly propertyService: PropertiesService,
     private readonly notesService: NotesService,
     private readonly feedbackQuestionService: FeedbackQuestionsService,
+    private readonly openHousePdfService: OpenHousePdfService,
   ) {}
 
   // ======================================================
@@ -188,6 +192,46 @@ export class AgentAppController {
   @Get('open-houses')
   getAllAgentOpenHouses(@CurrentAgentId() agentId: string) {
     return this.openHouseService.findAllByAgentId(agentId);
+  }
+
+  @Get('open-houses/:openHouseId/feedback-form/pdf')
+  async downloadOpenHouseFeedbackForm(
+    @CurrentAgentId() agentId: string,
+    @Param('openHouseId') openHouseId: string,
+    @Res() response: Response,
+  ) {
+    const pdf = await this.openHousePdfService.generateFeedbackForm(
+      agentId,
+      openHouseId,
+    );
+
+    response.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="open-house-feedback-form.pdf"`,
+      'Content-Length': pdf.length,
+    });
+
+    response.end(pdf);
+  }
+
+  @Get('open-houses/:openHouseId/flyer/pdf')
+  async downloadOpenHouseFlyer(
+    @CurrentAgentId() agentId: string,
+    @Param('openHouseId') openHouseId: string,
+    @Res() response: Response,
+  ) {
+    const pdf = await this.openHousePdfService.generateFlyer(
+      agentId,
+      openHouseId,
+    );
+
+    response.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'attachment; filename="open-house-flyer.pdf"',
+      'Content-Length': pdf.length,
+    });
+
+    response.end(pdf);
   }
 
   @Get('open-houses/:openHouseId')

@@ -84,11 +84,7 @@ export class LeadsService {
       where: {
         agentId,
         status: {
-          notIn: [
-            LeadStatusType.NEW,
-            LeadStatusType.LOST,
-            LeadStatusType.CLOSED,
-          ],
+          notIn: [LeadStatusType.NEW, LeadStatusType.LOST],
         },
       },
       orderBy: {
