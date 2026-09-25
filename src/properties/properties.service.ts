@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreatePropertiesDto } from './dto/create-properties.dto';
 import { UpdatePropertiesDto } from './dto/update-properties.dto';
-import { connect } from 'http2';
 
 @Injectable()
 export class PropertiesService {
