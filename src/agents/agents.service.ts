@@ -233,7 +233,7 @@ export class AgentsService {
     return this.withAssetUrls(updatedAgent);
   }
 
-  private async withAssetUrls<
+  public async withAssetUrls<
     T extends {
       logoUrl: string | null;
       headshotUrl: string | null;

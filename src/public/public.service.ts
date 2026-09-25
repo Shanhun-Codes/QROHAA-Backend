@@ -7,6 +7,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { publicLeadForm } from './config/lead-form.config';
 import { SubmitPublicFeedbackDto } from './dto/submit-public-feedback.dto';
 import { PublicSubmissionProtectionService } from './public-submission-protection.service';
+import { AgentsService } from 'src/agents/agents.service';
 
 const defaultBranding = {
   primaryColor: '#1E3A5F',
@@ -19,6 +20,7 @@ export class PublicService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly submissionProtection: PublicSubmissionProtectionService,
+    private readonly agentService: AgentsService,
   ) {}
 
   findPublicAgentBySlug(slug: string) {
@@ -62,6 +64,10 @@ export class PublicService {
         accentColor: true,
       },
     });
+
+    const agent = agentData
+      ? await this.agentService.withAssetUrls(agentData)
+      : null;
 
     const openHouseData = await this.prisma.openHouse.findFirst({
       where: {
@@ -121,16 +127,16 @@ export class PublicService {
     });
 
     return {
-      agent: agentData && {
-        slug: agentData.slug,
-        firstName: agentData.firstName,
-        lastName: agentData.lastName,
-        email: agentData.email,
-        phone: agentData.phone,
-        brokerageName: agentData.brokerageName,
-        headline: agentData.headline,
-        logoUrl: agentData.logoUrl,
-        headshotUrl: agentData.headshotUrl,
+      agent: agent && {
+        slug: agent.slug,
+        firstName: agent.firstName,
+        lastName: agent.lastName,
+        email: agent.email,
+        phone: agent.phone,
+        brokerageName: agent.brokerageName,
+        headline: agent.headline,
+        logoUrl: agent.logoUrl,
+        headshotUrl: agent.headshotUrl,
       },
       branding: {
         primaryColor: agentData?.primaryColor || defaultBranding.primaryColor,
