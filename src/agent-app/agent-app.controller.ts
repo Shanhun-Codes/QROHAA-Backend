@@ -32,6 +32,7 @@ import { PropertiesService } from 'src/properties/properties.service';
 import { CreateAgentUploadUrlDto } from 'src/storage/dto/create-agent-upload-url.dto';
 import { StorageService } from 'src/storage/storage.service';
 import { CompleteAgentUploadDto } from 'src/storage/dto/complete-agent-upload.dto';
+import { UpdatePropertiesDto } from 'src/properties/dto/update-properties.dto';
 
 @UseGuards(AgentAuthGuard)
 @Controller('agent-app')
@@ -189,6 +190,15 @@ export class AgentAppController {
     @Body() createPropertyDto: CreatePropertiesDto,
   ) {
     return this.propertyService.create(agentId, createPropertyDto);
+  }
+
+  @Patch('properties/:propertyId')
+  updateProperty(
+    @CurrentAgentId() agentId: string,
+    @Param('propertyId') propertyId: string,
+    @Body() updatePropertyDto: UpdatePropertiesDto,
+  ) {
+    return this.propertyService.update(agentId, propertyId, updatePropertyDto);
   }
 
   // ======================================================

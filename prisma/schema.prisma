@@ -53,6 +53,11 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
+enum PropertyStatusType {
+  ACTIVE
+  ARCHIVED
+}
+
 model Property {
   id String @id @default(cuid())
 
@@ -64,6 +69,8 @@ model Property {
 
   listingPriceCents Int?
 
+  status PropertyStatusType @default(ACTIVE)
+
   agentId String
   agent   Agent  @relation(fields: [agentId], references: [id])
 
@@ -71,6 +78,8 @@ model Property {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([agentId, status])
 }
 
 model OpenHouse {
@@ -93,6 +102,9 @@ model OpenHouse {
   openHouseFeedbackQuestions OpenHouseFeedbackQuestion[]
 
   openHouseFeedbackSubmissions FeedbackSubmission[]
+
+  @@index([agentId, startsAt])
+  @@index([agentId, endsAt])
 }
 
 enum FeedbackQuestionType {
@@ -222,9 +234,12 @@ model Lead {
 
   status LeadStatusType @default(NEW)
 
-  createdAt DateTime @default(now())
-
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @default(now()) @updatedAt
   submissions FeedbackSubmission[]
+
+  @@index([agentId, status])
+  @@index([agentId, createdAt])
 }
 
 enum NoteEntityType {
@@ -252,8 +267,7 @@ model Note {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([subjectType, subjectId])
-  @@index([agentId])
+  @@index([agentId, subjectType, subjectId])
 }
 
 model NoteMention {

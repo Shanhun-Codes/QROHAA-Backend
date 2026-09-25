@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreatePropertiesDto } from './dto/create-properties.dto';
 import { UpdatePropertiesDto } from './dto/update-properties.dto';
-import { connect } from 'http2';
 
 @Injectable()
 export class PropertiesService {
@@ -44,8 +43,18 @@ export class PropertiesService {
     return this.prisma.property.findUnique({ where: { id } });
   }
 
-  update(id: number, updatePropertyDto: UpdatePropertiesDto) {
-    return `This action updates a #${id} property`;
+  update(
+    agentId: string,
+    propertyId: string,
+    updatePropertyDto: UpdatePropertiesDto,
+  ) {
+    return this.prisma.property.update({
+      where: {
+        id: propertyId,
+        agentId,
+      },
+      data: updatePropertyDto,
+    });
   }
 
   remove(id: number) {
