@@ -256,6 +256,8 @@ model Note {
   // The entity this note belongs to.
   // Example: LEAD + dev-lead-michael-001
   subjectType NoteEntityType
+  // The ID of the entity this note belongs to.
+  // Example: leadId of the lead this note belongs to.
   subjectId   String
 
   // Agent who owns the note.

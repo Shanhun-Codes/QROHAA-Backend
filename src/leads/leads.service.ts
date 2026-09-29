@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { LeadStatusType } from 'generated/prisma/enums';
+import { LeadStatusType, NoteEntityType } from 'generated/prisma/enums';
 
 @Injectable()
 export class LeadsService {
@@ -34,6 +34,8 @@ export class LeadsService {
       'pre_qualified',
       'purchase_timeline',
       'neighborhoods',
+      'liked_least',
+      'liked_most',
     ];
 
     return this.prisma.lead.findUnique({
@@ -95,13 +97,6 @@ export class LeadsService {
     return [...newLeads, ...otherLeads];
   }
 
-  findOne(id: string) {
-    return this.prisma.lead.findUnique({
-      where: { id },
-      include: this.leadRelations(),
-    });
-  }
-
   async update(id: string, updateLeadDto: UpdateLeadDto) {
     const lead = await this.prisma.lead.findUnique({ where: { id } });
     if (!lead) {
@@ -115,32 +110,35 @@ export class LeadsService {
     });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} lead`;
-  }
-
   async updateLeadStatusFromMultiSelect(
     agentId: string,
     leadIds: string[],
     status: LeadStatusType,
   ) {
-    const result = await this.prisma.lead.updateMany({
-      where: {
-        agentId,
-        id: {
-          in: leadIds,
+    await this.prisma.$transaction(async (tx) => {
+      (await tx.lead.updateMany({
+        where: {
+          agentId,
+          id: {
+            in: leadIds,
+          },
         },
-      },
-      data: {
-        status,
-      },
+        data: {
+          updatedAt: new Date(),
+          status,
+        },
+      }),
+        await tx.note.createMany({
+          data: leadIds.map((leadId) => ({
+            agentId,
+            subjectType: NoteEntityType.LEAD,
+            subjectId: leadId,
+            body: `Status updated to ${status}`,
+          })),
+        }));
     });
 
-    console.log('UPDATED COUNT:', result.count);
-
     const leads = await this.findAllAgentLeads(agentId);
-
-    console.log('RETURNED LEADS:', leads);
 
     return leads;
   }
