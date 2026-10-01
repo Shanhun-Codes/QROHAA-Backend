@@ -39,6 +39,7 @@ export class PropertiesService {
       },
     });
   }
+
   findPropertyById(id: string) {
     return this.prisma.property.findUnique({ where: { id } });
   }
