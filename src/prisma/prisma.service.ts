@@ -20,7 +20,7 @@ export class PrismaService extends PrismaClient {
       ? `${encodeURIComponent(databaseUser)}:${encodeURIComponent(databasePassword)}`
       : encodeURIComponent(databaseUser);
 
-    const databaseUrl = `postgresql://${credentials}@${databaseHost}:5432/${databaseName}`;
+    const databaseUrl = `postgresql://${credentials}@${databaseHost}:5432/${databaseName}?sslmode=require`;
 
     super({
       adapter: new PrismaPg({
