@@ -1,4 +1,5 @@
 import { Type } from 'class-transformer';
+import { OmitType, PartialType } from '@nestjs/mapped-types';
 import {
   IsEmail,
   IsNotEmpty,
@@ -55,6 +56,19 @@ export class BrokerageSetupDto {
   @IsOptional()
   @IsUrl()
   websiteUrl?: string;
+}
+
+export class UpdateBrokerageAddressDto extends PartialType(
+  BrokerageAddressDto,
+) {}
+
+export class UpdateBrokerageSetupDto extends PartialType(
+  OmitType(BrokerageSetupDto, ['address'] as const),
+) {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UpdateBrokerageAddressDto)
+  address?: UpdateBrokerageAddressDto;
 }
 
 export class CreateOnboardingAgentDto extends CreateAgentDto {

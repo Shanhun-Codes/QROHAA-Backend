@@ -141,7 +141,6 @@ export class OpenHousesService {
             lastName: true,
             email: true,
             phone: true,
-            brokerageName: true,
             headline: true,
             headshotUrl: true,
             logoUrl: true,
@@ -185,7 +184,7 @@ export class OpenHousesService {
       return null;
     }
 
-    const agent = await this.agentsService.findOne(openHouse.agent.id);
+    const agent = await this.agentsService.findProfile(openHouse.agent.id);
 
     return {
       ...openHouse,

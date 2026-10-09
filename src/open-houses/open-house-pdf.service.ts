@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 
 import { OpenHousesService } from './open-houses.service';
@@ -26,10 +30,13 @@ export class OpenHousePdfService {
       throw new NotFoundException('Open house not found.');
     }
 
+    const brokerage = this.requireAdvertisingInfo(openHouse.agent);
+    const logoBuffer = await this.fetchImage(openHouse.agent?.logoUrl);
+
     return new Promise<Buffer>((resolve, reject) => {
       const doc = new PDFDocument({
         size: 'LETTER',
-        margin: 48,
+        margins: { top: 48, left: 48, right: 48, bottom: 0 },
         autoFirstPage: true,
       });
 
@@ -93,16 +100,27 @@ export class OpenHousePdfService {
           width: 335,
         });
 
-      if (openHouse.agent!.brokerageName) {
-        doc
-          .font('Helvetica-Bold')
-          .fontSize(10)
-          .fillColor(primaryColor)
-          .text(openHouse.agent!.brokerageName, 390, 59, {
-            width: pageRight - 390,
-            align: 'right',
-          });
-      }
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .fillColor(primaryColor)
+        .text(brokerage.name, 334, 52, {
+          width: pageRight - 334,
+          align: 'right',
+        });
+
+      doc
+        .font('Helvetica')
+        .fontSize(8)
+        .fillColor('#697077')
+        .text(brokerage.licenseLine, 334, 67, {
+          width: pageRight - 334,
+          align: 'right',
+        })
+        .text(brokerage.addressLine, 334, 78, {
+          width: pageRight - 334,
+          align: 'right',
+        });
 
       doc
         .strokeColor(primaryColor)
@@ -179,7 +197,7 @@ export class OpenHousePdfService {
       // FOOTER
       // =====================================================
 
-      const footerY = 690;
+      const footerY = 676;
 
       doc
         .strokeColor(primaryColor)
@@ -196,16 +214,99 @@ export class OpenHousePdfService {
         .fillColor(primaryColor)
         .text(agentName, pageLeft, footerY + 9);
 
-      if (openHouse.agent!.brokerageName) {
+      doc
+        .font('Helvetica')
+        .fontSize(8.5)
+        .fillColor('#697077')
+        .text(brokerage.agentLicenseLine, pageLeft, footerY + 23);
+
+      let footerTextY = footerY + 35;
+
+      if (openHouse.agent!.phone) {
         doc
           .font('Helvetica')
           .fontSize(8.5)
           .fillColor('#697077')
-          .text(openHouse.agent!.brokerageName, pageLeft, footerY + 23);
+          .text(
+            this.formatPhone(openHouse.agent!.phone),
+            pageLeft,
+            footerTextY,
+          );
+
+        footerTextY += 12;
+      }
+
+      if (openHouse.agent!.email) {
+        doc
+          .font('Helvetica')
+          .fontSize(8.5)
+          .fillColor('#697077')
+          .text(openHouse.agent!.email, pageLeft, footerTextY);
+      }
+
+      if (logoBuffer) {
+        doc.image(logoBuffer, pageRight - 120, footerY + 10, {
+          fit: [120, 50],
+          align: 'right',
+        });
       }
 
       doc.end();
     });
+  }
+
+  // =====================================================
+  // BROKERAGE
+  // =====================================================
+
+  // Advertising rules require brokerage name, broker and agent licenses, and address.
+  private requireAdvertisingInfo(
+    agent:
+      | {
+          realEstateLicenseNumber: string | null;
+          brokerage: {
+            name: string;
+            licenseNumber: string | null;
+            street: string | null;
+            street2: string | null;
+            city: string | null;
+            state: string | null;
+            zip: string | null;
+          } | null;
+        }
+      | null
+      | undefined,
+  ) {
+    const brokerage = agent?.brokerage;
+
+    if (
+      !agent?.realEstateLicenseNumber ||
+      !brokerage?.name ||
+      !brokerage.licenseNumber ||
+      !brokerage.street ||
+      !brokerage.city ||
+      !brokerage.state ||
+      !brokerage.zip
+    ) {
+      throw new BadRequestException(
+        'Add your license number and your brokerage name, license number, and address before generating public materials.',
+      );
+    }
+
+    const addressLine = [
+      brokerage.street,
+      brokerage.street2,
+      `${brokerage.city}, ${brokerage.state} ${brokerage.zip}`,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    return {
+      name: brokerage.name,
+      licenseLine: `Broker License #: ${brokerage.licenseNumber}`,
+      agentLicenseLine: `Agent License #: ${agent.realEstateLicenseNumber}`,
+      addressLine,
+    };
   }
 
   // =====================================================
@@ -574,6 +675,7 @@ export class OpenHousePdfService {
     if (!openHouse || !openHouse.agent) {
       throw new NotFoundException('Open house not found.');
     }
+    const brokerage = this.requireAdvertisingInfo(openHouse.agent);
     const publicBaseUrl =
       this.configService.getOrThrow<string>('PUBLIC_BASE_URL');
 
@@ -620,19 +722,31 @@ export class OpenHousePdfService {
 
       doc.rect(0, 0, pageWidth, 92).fill(primaryColor);
 
+      const headerTextX = logoBuffer ? 130 : 42;
+      const headerTextWidth = 320 - headerTextX;
+
       if (logoBuffer) {
         doc.image(logoBuffer, 42, 20, {
-          fit: [160, 52],
+          fit: [80, 52],
         });
-      } else if (openHouse.agent!.brokerageName) {
-        doc
-          .font('Helvetica-Bold')
-          .fontSize(12)
-          .fillColor('#ffffff')
-          .text(openHouse.agent!.brokerageName, 42, 38, {
-            width: 250,
-          });
       }
+
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .fillColor('#ffffff')
+        .text(brokerage.name, headerTextX, 24, { width: headerTextWidth });
+
+      doc
+        .font('Helvetica')
+        .fontSize(8)
+        .fillColor('#ffffff')
+        .text(brokerage.licenseLine, headerTextX, 38, {
+          width: headerTextWidth,
+        })
+        .text(brokerage.addressLine, headerTextX, 50, {
+          width: headerTextWidth,
+        });
 
       doc
         .font('Helvetica-Bold')
@@ -837,15 +951,14 @@ export class OpenHousePdfService {
 
       let agentY = footerY + 70;
 
-      if (openHouse.agent!.brokerageName) {
-        doc
-          .font('Helvetica-Bold')
-          .fontSize(10)
-          .fillColor('#ffffff')
-          .text(openHouse.agent!.brokerageName, 150, agentY);
+      doc
+        .font('Helvetica')
+        .fontSize(9)
+        .fillColor('#ffffff')
+        .opacity(0.85)
+        .text(brokerage.agentLicenseLine, 150, agentY);
 
-        agentY += 16;
-      }
+      agentY += 14;
 
       if (openHouse.agent!.phone) {
         doc
@@ -892,16 +1005,6 @@ export class OpenHousePdfService {
         .fontSize(12)
         .fillColor('#ffffff')
         .text(openHouse.property.street, 350, footerY + 49, {
-          width: 220,
-          align: 'right',
-        });
-
-      doc
-        .font('Courier')
-        .fontSize(9)
-        .fillColor('#ffffff')
-        .opacity(0.55)
-        .text(openHouse.publicCode, 350, footerY + 69, {
           width: 220,
           align: 'right',
         });

@@ -9,6 +9,16 @@ import { SubmitPublicFeedbackDto } from './dto/submit-public-feedback.dto';
 import { PublicSubmissionProtectionService } from './public-submission-protection.service';
 import { AgentsService } from 'src/agents/agents.service';
 
+const publicBrokerageSelect = {
+  name: true,
+  licenseNumber: true,
+  street: true,
+  street2: true,
+  city: true,
+  state: true,
+  zip: true,
+} as const;
+
 const defaultBranding = {
   primaryColor: '#1E3A5F',
   secondaryColor: '#4F6F8F',
@@ -32,7 +42,7 @@ export class PublicService {
         lastName: true,
         email: true,
         phone: true,
-        brokerageName: true,
+        brokerage: { select: publicBrokerageSelect },
         headline: true,
         logoUrl: true,
         headshotUrl: true,
@@ -55,7 +65,8 @@ export class PublicService {
         lastName: true,
         email: true,
         phone: true,
-        brokerageName: true,
+        realEstateLicenseNumber: true,
+        brokerage: { select: publicBrokerageSelect },
         headline: true,
         logoUrl: true,
         headshotUrl: true,
@@ -133,7 +144,8 @@ export class PublicService {
         lastName: agent.lastName,
         email: agent.email,
         phone: agent.phone,
-        brokerageName: agent.brokerageName,
+        realEstateLicenseNumber: agent.realEstateLicenseNumber,
+        brokerage: agent.brokerage,
         headline: agent.headline,
         logoUrl: agent.logoUrl,
         headshotUrl: agent.headshotUrl,
