@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { AgentsService } from 'src/agents/agents.service';
-import { CreateAgentDto } from 'src/agents/dto/create-agent.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { CreateOnboardingAgentDto } from './dto/create-onboarding-agent.dto';
 
 @Injectable()
 export class OnboardingService {
@@ -11,7 +11,10 @@ export class OnboardingService {
     private readonly agentsService: AgentsService,
   ) {}
 
-  async createAgentForUser(cognitoSub: string, createAgentDto: CreateAgentDto) {
+  async createAgentForUser(
+    cognitoSub: string,
+    createAgentDto: CreateOnboardingAgentDto,
+  ) {
     const existingUser = await this.prisma.user.findUnique({
       where: {
         cognitoSub,

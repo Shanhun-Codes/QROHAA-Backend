@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 
-import { CreateAgentDto } from 'src/agents/dto/create-agent.dto';
+import { CreateOnboardingAgentDto } from './dto/create-onboarding-agent.dto';
 import { AuthUserService } from 'src/auth/auth-user.service';
 import { CognitoAuthGuard } from 'src/auth/cognito-auth.guard';
 
@@ -48,7 +48,7 @@ export class OnboardingController {
   @Post('agent')
   async createAgent(
     @Req() request: Request,
-    @Body() createAgentDto: CreateAgentDto,
+    @Body() createAgentDto: CreateOnboardingAgentDto,
   ) {
     const cognitoSub = request['user']?.cognitoSub;
 

@@ -47,7 +47,7 @@ export class AuthUserService {
       return user;
     }
 
-    const agent = await this.agentsService.findOne(user.agent.id);
+    const agent = await this.agentsService.findProfile(user.agent.id);
 
     return {
       ...user,

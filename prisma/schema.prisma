@@ -23,6 +23,8 @@ model Agent {
 
   brokerageName String?
 
+  realEstateLicenseNumber String?
+
   headline       String?
   logoUrl        String?
   headshotUrl    String?

@@ -33,7 +33,6 @@ import { CreateAgentUploadUrlDto } from 'src/storage/dto/create-agent-upload-url
 import { StorageService } from 'src/storage/storage.service';
 import { CompleteAgentUploadDto } from 'src/storage/dto/complete-agent-upload.dto';
 import { UpdatePropertiesDto } from 'src/properties/dto/update-properties.dto';
-import { UpdateLeadDto } from 'src/leads/dto/update-lead.dto';
 
 @UseGuards(AgentAuthGuard)
 @Controller('agent-app')

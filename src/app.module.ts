@@ -14,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { StorageModule } from './storage/storage.module';
+import { BrokerageModule } from './brokerage/brokerage.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { StorageModule } from './storage/storage.module';
     PrismaModule,
     OnboardingModule,
     StorageModule,
+    BrokerageModule,
   ],
 })
 export class AppModule {}
