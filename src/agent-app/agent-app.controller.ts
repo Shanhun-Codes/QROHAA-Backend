@@ -12,7 +12,6 @@ import {
 import { LeadStatusType, NoteEntityType } from 'generated/prisma/enums';
 import { AgentsService } from 'src/agents/agents.service';
 import type { Response } from 'express';
-import { CreateAgentDto } from 'src/agents/dto/create-agent.dto';
 import { UpdateAgentDto } from 'src/agents/dto/update-agent.dto';
 import { AgentAuthGuard } from 'src/auth/agent-auth.guard';
 import { CurrentAgentId } from 'src/auth/current-agent-id.decorator';
@@ -49,28 +48,8 @@ export class AgentAppController {
   ) {}
 
   // ======================================================
-  // TEMPORARY / DEVELOPMENT ROUTES
-  // ======================================================
-
-  // @Get('leads')
-  // findLeads() {
-  //   return this.leadsService.findAllLeadsWithSelectedFeedback();
-  // }
-
-  // temporary do not push to public
-  @Get('agents')
-  findAllAgents() {
-    return this.agentsService.findAll();
-  }
-
-  // ======================================================
   // AGENTS
   // ======================================================
-
-  @Post('agents')
-  createAgent(@Body() createAgentDto: CreateAgentDto) {
-    return this.agentsService.create(createAgentDto);
-  }
 
   @Patch('agents')
   updateAgent(
@@ -118,8 +97,11 @@ export class AgentAppController {
   }
 
   @Post('leads')
-  createLeadFromAgentApp(@Body() createLeadDto: CreateLeadDto) {
-    return this.leadsService.create(createLeadDto);
+  createLeadFromAgentApp(
+    @CurrentAgentId() agentId: string,
+    @Body() createLeadDto: CreateLeadDto,
+  ) {
+    return this.leadsService.create(agentId, createLeadDto);
   }
 
   @Patch('leads/status')

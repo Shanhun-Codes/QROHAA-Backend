@@ -15,6 +15,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { StorageModule } from './storage/storage.module';
 import { BrokerageModule } from './brokerage/brokerage.module';
+import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { BrokerageModule } from './brokerage/brokerage.module';
     OnboardingModule,
     StorageModule,
     BrokerageModule,
+    PlatformAdminModule,
   ],
 })
 export class AppModule {}

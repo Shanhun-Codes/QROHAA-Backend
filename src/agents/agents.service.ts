@@ -256,7 +256,7 @@ export class AgentsService {
       .replace(/-+/g, '-');
   }
 
-  private async generateUniqueSlug(
+  async generateUniqueSlug(
     firstName: string,
     lastName: string,
   ): Promise<string> {

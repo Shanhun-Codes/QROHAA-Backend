@@ -13,6 +13,8 @@
     "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "prepare": "husky",
     "prisma:generate": "prisma generate",
+    "admin": "tsx scripts/admin.ts",
+    "bootstrap:platform-admins": "tsx scripts/bootstrap-platform-admins.ts",
     "prisma:reset:local": "dotenv -e .env.local -- node scripts/prisma-reset.js dev",
     "prisma:seed:local": "dotenv -e .env.local -- prisma db seed",
     "prisma:status:dev": "dotenv -e .env -- prisma migrate status",
@@ -42,6 +44,7 @@
     "verify": "npm run prisma:generate && npm test -- --runInBand && npm run build"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1149.0",
     "@aws-sdk/client-s3": "^3.1139.0",
     "@aws-sdk/s3-request-presigner": "^3.1139.0",
     "@nestjs/common": "^11.0.1",
@@ -62,6 +65,7 @@
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
+    "@inquirer/prompts": "^7.10.1",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
     "@nestjs/cli": "^11.0.0",

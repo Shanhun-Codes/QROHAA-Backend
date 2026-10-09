@@ -128,6 +128,7 @@ jobs:
           aws ecs update-service \
             --cluster qrohaa \
             --service qrohaa-qa-backend-service-vi76oknv \
+            --task-definition qrohaa-qa-backend \
             --force-new-deployment
 
       - name: Wait for QA service to stabilize

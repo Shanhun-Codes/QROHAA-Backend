@@ -8,14 +8,14 @@ import { LeadStatusType, NoteEntityType } from 'generated/prisma/enums';
 export class LeadsService {
   constructor(private prisma: PrismaService) {}
 
-  create(createLeadDto: CreateLeadDto) {
+  create(agentId: string, createLeadDto: CreateLeadDto) {
     return this.prisma.lead.create({
       data: {
         firstName: createLeadDto.firstName ?? null,
         lastName: createLeadDto.lastName ?? null,
         email: createLeadDto.email ?? null,
         phone: createLeadDto.phone ?? null,
-        agentId: createLeadDto.agentId,
+        agentId,
       },
       include: this.leadRelations(),
     });
@@ -97,14 +97,16 @@ export class LeadsService {
     return [...newLeads, ...otherLeads];
   }
 
-  async update(id: string, updateLeadDto: UpdateLeadDto) {
-    const lead = await this.prisma.lead.findUnique({ where: { id } });
+  async update(agentId: string, id: string, updateLeadDto: UpdateLeadDto) {
+    const lead = await this.prisma.lead.findFirst({
+      where: { id, agentId },
+    });
     if (!lead) {
       throw new NotFoundException(`Lead ${id} was not found.`);
     }
 
     return this.prisma.lead.update({
-      where: { id },
+      where: { id, agentId },
       data: updateLeadDto,
       include: this.leadRelations(),
     });
@@ -115,27 +117,45 @@ export class LeadsService {
     leadIds: string[],
     status: LeadStatusType,
   ) {
+    const uniqueLeadIds = [...new Set(leadIds)];
+    if (!uniqueLeadIds.length) {
+      return this.findAllAgentLeads(agentId);
+    }
+
     await this.prisma.$transaction(async (tx) => {
-      (await tx.lead.updateMany({
+      const ownedLeads = await tx.lead.findMany({
         where: {
           agentId,
           id: {
-            in: leadIds,
+            in: uniqueLeadIds,
           },
+        },
+        select: { id: true },
+      });
+
+      if (ownedLeads.length !== uniqueLeadIds.length) {
+        throw new NotFoundException('One or more leads were not found.');
+      }
+
+      await tx.lead.updateMany({
+        where: {
+          agentId,
+          id: { in: uniqueLeadIds },
         },
         data: {
           updatedAt: new Date(),
           status,
         },
-      }),
-        await tx.note.createMany({
-          data: leadIds.map((leadId) => ({
-            agentId,
-            subjectType: NoteEntityType.LEAD,
-            subjectId: leadId,
-            body: `Status updated to ${status}`,
-          })),
-        }));
+      });
+
+      await tx.note.createMany({
+        data: ownedLeads.map(({ id: leadId }) => ({
+          agentId,
+          subjectType: NoteEntityType.LEAD,
+          subjectId: leadId,
+          body: `Status updated to ${status}`,
+        })),
+      });
     });
 
     const leads = await this.findAllAgentLeads(agentId);
