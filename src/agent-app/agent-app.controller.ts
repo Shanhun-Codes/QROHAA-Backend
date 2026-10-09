@@ -33,7 +33,9 @@ import { CreateAgentUploadUrlDto } from 'src/storage/dto/create-agent-upload-url
 import { StorageService } from 'src/storage/storage.service';
 import { CompleteAgentUploadDto } from 'src/storage/dto/complete-agent-upload.dto';
 import { UpdatePropertiesDto } from 'src/properties/dto/update-properties.dto';
-import { UpdateLeadDto } from 'src/leads/dto/update-lead.dto';
+import { BrokerageService } from 'src/brokerage/brokerage.service';
+import { CreateBrokerageDto } from 'src/brokerage/dto/create-brokerage.dto';
+import { UpdateBrokerageDto } from 'src/brokerage/dto/update-brokerage.dto';
 
 @UseGuards(AgentAuthGuard)
 @Controller('agent-app')
@@ -47,6 +49,7 @@ export class AgentAppController {
     private readonly feedbackQuestionService: FeedbackQuestionsService,
     private readonly openHousePdfService: OpenHousePdfService,
     private readonly storageService: StorageService,
+    private readonly brokerageService: BrokerageService,
   ) {}
 
   // ======================================================
@@ -99,6 +102,18 @@ export class AgentAppController {
     @Body() dto: CompleteAgentUploadDto,
   ) {
     return this.agentsService.completeAssetUpload(agentId, dto.type, dto.key);
+  }
+
+  // ======================================================
+  // BROKERAGE
+  // ======================================================
+
+  @Patch('brokerage')
+  updateBrokerage(
+    @CurrentAgentId() agentId: string,
+    @Body() dto: UpdateBrokerageDto,
+  ) {
+    return this.brokerageService.update(agentId, dto);
   }
 
   // ======================================================

@@ -8,6 +8,7 @@ import { UpdateAgentDto } from './dto/update-agent.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AgentFeedbackQuestionSelectionDto } from './dto/replace-agent-feedback-questions.dto';
 import { StorageService } from 'src/storage/storage.service';
+import { CreateOnboardingAgentDto } from 'src/onboarding/dto/create-onboarding-agent.dto';
 
 @Injectable()
 export class AgentsService {
@@ -16,7 +17,10 @@ export class AgentsService {
     private readonly storageService: StorageService,
   ) {}
 
-  async create(createAgentDto: CreateAgentDto) {
+  async create(
+    createAgentDto: CreateAgentDto & Partial<CreateOnboardingAgentDto>,
+  ) {
+    const { brokerage } = createAgentDto;
     const slug = await this.generateUniqueSlug(
       createAgentDto.firstName,
       createAgentDto.lastName,
@@ -36,7 +40,7 @@ export class AgentsService {
           lastName: createAgentDto.lastName,
           email: createAgentDto.email,
           phone: createAgentDto.phone,
-          brokerageName: createAgentDto.brokerageName ?? null,
+          realEstateLicenseNumber: createAgentDto.realEstateLicenseNumber,
           headline: createAgentDto.headline ?? '',
           logoUrl: createAgentDto.logoUrl ?? '',
           headshotUrl: createAgentDto.headshotUrl ?? '',
@@ -49,9 +53,22 @@ export class AgentsService {
               sortOrder,
             })),
           },
+          ...(brokerage && {
+            brokerage: {
+              create: {
+                name: brokerage.name,
+                licenseNumber: brokerage.licenseNumber,
+                phone: brokerage.phone,
+                email: brokerage.email,
+                websiteUrl: brokerage.websiteUrl,
+                ...brokerage.address,
+              },
+            },
+          }),
         },
         include: {
           agentFeedbackQuestions: { orderBy: { sortOrder: 'asc' } },
+          brokerage: true,
         },
       }),
     );
@@ -66,6 +83,7 @@ export class AgentsService {
   async findOne(id: string) {
     const agent = await this.prisma.agent.findUnique({
       where: { id },
+      include: { brokerage: true },
     });
 
     if (!agent) {

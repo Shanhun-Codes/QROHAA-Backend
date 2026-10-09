@@ -8,9 +8,11 @@ import { FeedbackQuestionsModule } from 'src/feedback-questions/feedback-questio
 import { NotesModule } from 'src/notes/notes.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { StorageModule } from 'src/storage/storage.module';
+import { BrokerageModule } from 'src/brokerage/brokerage.module';
 
 @Module({
   imports: [
+    BrokerageModule,
     LeadsModule,
     OpenHousesModule,
     AgentsModule,
