@@ -16,14 +16,21 @@ export class NotesService {
   ) {
     await this.validateSubject(agentId, NoteEntityType.LEAD, leadId);
 
-    await this.prisma.note.update({
+    const updated = await this.prisma.note.updateMany({
       where: {
         id: noteId,
+        agentId,
+        subjectType: NoteEntityType.LEAD,
+        subjectId: leadId,
       },
       data: {
         body: updateNoteDto.body,
       },
     });
+
+    if (updated.count !== 1) {
+      throw new NotFoundException('Note not found.');
+    }
 
     return this.findAllBySubject(agentId, NoteEntityType.LEAD, leadId);
   }

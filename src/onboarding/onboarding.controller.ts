@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Post,
   Req,
   UnauthorizedException,
@@ -9,7 +10,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 
-import { CreateOnboardingAgentDto } from './dto/create-onboarding-agent.dto';
+import { RedeemInvitationDto } from './dto/redeem-invitation.dto';
 import { AuthUserService } from 'src/auth/auth-user.service';
 import { CognitoAuthGuard } from 'src/auth/cognito-auth.guard';
 
@@ -33,22 +34,33 @@ export class OnboardingController {
 
     const user = await this.authUserService.getUserByCognitoSub(cognitoSub);
 
-    if (!user?.agent) {
+    if (!user) {
       return {
         hasAgent: false,
+        invitationRequired: true,
+      };
+    }
+
+    if (!user.accessGranted) {
+      return {
+        hasAgent: false,
+        accessGranted: false,
+        accessStatus: user.accessStatus,
       };
     }
 
     return {
       hasAgent: true,
+      accessGranted: true,
       agent: user.agent,
     };
   }
 
   @Post('agent')
-  async createAgent(
+  async redeemInvitation(
     @Req() request: Request,
-    @Body() createAgentDto: CreateOnboardingAgentDto,
+    @Headers('x-cognito-id-token') idToken: string | undefined,
+    @Body() redeemInvitationDto: RedeemInvitationDto,
   ) {
     const cognitoSub = request['user']?.cognitoSub;
 
@@ -56,9 +68,14 @@ export class OnboardingController {
       throw new UnauthorizedException('Missing Cognito sub');
     }
 
-    return this.onboardingService.createAgentForUser(
+    if (!idToken) {
+      throw new UnauthorizedException('Missing Cognito ID token');
+    }
+
+    return this.onboardingService.redeemInvitation(
       cognitoSub,
-      createAgentDto,
+      idToken,
+      redeemInvitationDto,
     );
   }
 }
