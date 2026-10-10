@@ -12,30 +12,99 @@ jobs:
       id-token: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::545009862799:role/qrohaa-github-qa-deploy
           aws-region: us-east-1
 
-      - name: Get QA network configuration
-        id: network
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push admin image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: qrohaa-backend
+          IMAGE_TAG: qa-admin-${{ github.sha }}
+        run: |
+          docker build \
+            --target admin \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            .
+
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+          echo "ADMIN_IMAGE=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_ENV"
+
+      - name: Get QA configuration
+        id: qa
         run: |
           SERVICE_JSON=$(aws ecs describe-services \
             --cluster qrohaa \
             --services qrohaa-qa-backend-service-vi76oknv)
 
-          SUBNETS=$(echo "$SERVICE_JSON" | jq -r '.services[0].networkConfiguration.awsvpcConfiguration.subnets | join(",")')
-          SECURITY_GROUPS=$(echo "$SERVICE_JSON" | jq -r '.services[0].networkConfiguration.awsvpcConfiguration.securityGroups | join(",")')
-          ASSIGN_PUBLIC_IP=$(echo "$SERVICE_JSON" | jq -r '.services[0].networkConfiguration.awsvpcConfiguration.assignPublicIp')
+          echo "$SERVICE_JSON" | jq -e '.services[0].status == "ACTIVE"' > /dev/null
 
-          echo "subnets=$SUBNETS" >> "$GITHUB_OUTPUT"
-          echo "security_groups=$SECURITY_GROUPS" >> "$GITHUB_OUTPUT"
-          echo "assign_public_ip=$ASSIGN_PUBLIC_IP" >> "$GITHUB_OUTPUT"
+          NETWORK=$(echo "$SERVICE_JSON" | jq -c \
+            '.services[0].networkConfiguration')
 
-      - name: Run platform-admin bootstrap
+          TASK_DEFINITION=$(echo "$SERVICE_JSON" | jq -r \
+            '.services[0].taskDefinition')
+
+          echo "network=$NETWORK" >> "$GITHUB_OUTPUT"
+          echo "task_definition=$TASK_DEFINITION" >> "$GITHUB_OUTPUT"
+
+      - name: Register temporary admin task definition
+        id: task
+        env:
+          BASE_TASK: ${{ steps.qa.outputs.task_definition }}
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "$BASE_TASK" \
+            --query taskDefinition \
+            --output json > task-definition.json
+
+          jq \
+            --arg image "$ADMIN_IMAGE" \
+            '
+            del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy,
+              .deregisteredAt
+            )
+            | .family = "qrohaa-qa-admin-bootstrap"
+            | .containerDefinitions |= map(
+                if .name == "qrohaa-backend" then
+                  .image = $image
+                  | .command = ["npm", "run", "bootstrap:platform-admins"]
+                  | del(.portMappings, .healthCheck)
+                else
+                  .
+                end
+              )
+            ' task-definition.json > admin-task-definition.json
+
+          TASK_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://admin-task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "task_arn=$TASK_ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Run QA admin bootstrap
         env:
           ADMIN_SUBS: ${{ secrets.PLATFORM_ADMIN_COGNITO_SUBS }}
+          TASK_ARN: ${{ steps.task.outputs.task_arn }}
+          NETWORK: ${{ steps.qa.outputs.network }}
         run: |
           if [ -z "$ADMIN_SUBS" ]; then
             echo "Missing PLATFORM_ADMIN_COGNITO_SUBS secret"
@@ -47,44 +116,46 @@ jobs:
             '{
               containerOverrides: [{
                 name: "qrohaa-backend",
-                command: ["npm", "run", "bootstrap:platform-admins"],
-                environment: [
-                  {
-                    name: "PLATFORM_ADMIN_COGNITO_SUBS",
-                    value: $subs
-                  }
-                ]
+                environment: [{
+                  name: "PLATFORM_ADMIN_COGNITO_SUBS",
+                  value: $subs
+                }]
               }]
             }')
 
-          TASK_ARN=$(aws ecs run-task \
+          RUN_RESULT=$(aws ecs run-task \
             --cluster qrohaa \
             --launch-type FARGATE \
-            --task-definition qrohaa-qa-backend:13 \
-            --network-configuration "awsvpcConfiguration={subnets=[${{ steps.network.outputs.subnets }}],securityGroups=[${{ steps.network.outputs.security_groups }}],assignPublicIp=${{ steps.network.outputs.assign_public_ip }}}" \
+            --task-definition "$TASK_ARN" \
+            --network-configuration "$NETWORK" \
             --overrides "$OVERRIDES" \
-            --query 'tasks[0].taskArn' \
-            --output text)
+            --output json)
 
-          if [ -z "$TASK_ARN" ] || [ "$TASK_ARN" = "None" ]; then
-            echo "ECS task did not start"
-            exit 1
-          fi
+          echo "$RUN_RESULT" | jq -e \
+            '(.failures | length) == 0 and (.tasks | length) == 1' \
+            > /dev/null
 
-          echo "Bootstrap task: $TASK_ARN"
+          RUNNING_TASK=$(echo "$RUN_RESULT" | jq -r \
+            '.tasks[0].taskArn')
+
+          echo "Bootstrap ECS task: $RUNNING_TASK"
 
           aws ecs wait tasks-stopped \
             --cluster qrohaa \
-            --tasks "$TASK_ARN"
+            --tasks "$RUNNING_TASK"
 
-          EXIT_CODE=$(aws ecs describe-tasks \
+          TASK_RESULT=$(aws ecs describe-tasks \
             --cluster qrohaa \
-            --tasks "$TASK_ARN" \
-            --query 'tasks[0].containers[0].exitCode' \
-            --output text)
+            --tasks "$RUNNING_TASK" \
+            --output json)
+
+          EXIT_CODE=$(echo "$TASK_RESULT" | jq -r \
+            '.tasks[0].containers[] | select(.name == "qrohaa-backend") | .exitCode')
 
           if [ "$EXIT_CODE" != "0" ]; then
-            echo "Bootstrap failed with exit code: $EXIT_CODE"
+            echo "Bootstrap failed. Exit code: $EXIT_CODE"
+            echo "$TASK_RESULT" | jq \
+              '.tasks[0] | {stopCode, stoppedReason, containers: [.containers[] | {name, reason, exitCode}]}'
             exit 1
           fi
 
