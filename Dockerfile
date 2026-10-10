@@ -1,3 +1,7 @@
+
+# ============================================
+# BUILD
+# ============================================
 FROM node:22-alpine AS build
 
 WORKDIR /app
@@ -13,6 +17,27 @@ RUN npx prisma generate
 RUN npm run build
 
 
+# ============================================
+# ADMIN - Bootstrap and maintenance tasks
+# ============================================
+FROM build AS admin
+
+WORKDIR /app
+
+# Install CA certificates + wget
+RUN apk add --no-cache ca-certificates wget
+
+# Download AWS RDS CA bundle
+RUN mkdir -p /app/certs \
+    && wget -O /app/certs/rds-ca-bundle.pem \
+    https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+
+CMD ["npm", "run", "bootstrap:platform-admins"]
+
+
+# ============================================
+# PRODUCTION
+# ============================================
 FROM node:22-alpine AS production
 
 WORKDIR /app
