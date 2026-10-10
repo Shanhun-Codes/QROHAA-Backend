@@ -41,7 +41,10 @@ export class AuthUserService {
   async getAgentByCognitoSub(cognitoSub: string) {
     const user = await this.getApplicationUser(cognitoSub);
 
-    if (String(user.role) !== 'AGENT' || !user.agent) {
+    const isAgent = String(user.role) === 'AGENT';
+    const isPlatformAdmin = String(user.role) === 'PLATFORM_ADMIN';
+
+    if ((!isAgent && !isPlatformAdmin) || !user.agent) {
       throw new ForbiddenException('Agent access is required.');
     }
 
