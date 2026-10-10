@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -7,12 +8,20 @@ import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AgentFeedbackQuestionSelectionDto } from './dto/replace-agent-feedback-questions.dto';
+import { StorageService } from 'src/storage/storage.service';
+import { CreateOnboardingAgentDto } from 'src/onboarding/dto/create-onboarding-agent.dto';
 
 @Injectable()
 export class AgentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+  ) {}
 
-  async create(createAgentDto: CreateAgentDto) {
+  async create(
+    createAgentDto: CreateAgentDto & Partial<CreateOnboardingAgentDto>,
+  ) {
+    const { brokerage } = createAgentDto;
     const slug = await this.generateUniqueSlug(
       createAgentDto.firstName,
       createAgentDto.lastName,
@@ -24,7 +33,7 @@ export class AgentsService {
       orderBy: { key: 'asc' },
     });
 
-    return this.prisma.$transaction((transaction) =>
+    const agent = await this.prisma.$transaction((transaction) =>
       transaction.agent.create({
         data: {
           slug,
@@ -32,7 +41,7 @@ export class AgentsService {
           lastName: createAgentDto.lastName,
           email: createAgentDto.email,
           phone: createAgentDto.phone,
-          brokerageName: createAgentDto.brokerageName ?? null,
+          realEstateLicenseNumber: createAgentDto.realEstateLicenseNumber,
           headline: createAgentDto.headline ?? '',
           logoUrl: createAgentDto.logoUrl ?? '',
           headshotUrl: createAgentDto.headshotUrl ?? '',
@@ -45,12 +54,55 @@ export class AgentsService {
               sortOrder,
             })),
           },
+          ...(brokerage && {
+            brokerage: {
+              create: {
+                name: brokerage.name,
+                licenseNumber: brokerage.licenseNumber,
+                phone: brokerage.phone,
+                email: brokerage.email,
+                websiteUrl: brokerage.websiteUrl,
+                ...brokerage.address,
+              },
+            },
+          }),
         },
-        include: {
-          agentFeedbackQuestions: { orderBy: { sortOrder: 'asc' } },
-        },
+        select: { id: true },
       }),
     );
+
+    const profile = await this.findProfile(agent.id);
+
+    if (!profile) {
+      throw new NotFoundException('Agent not found.');
+    }
+
+    return profile;
+  }
+
+  // Client-facing agent shape: no legacy or internal columns.
+  async findProfile(id: string) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { id },
+      omit: {
+        brokerageName: true,
+        agencyId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      include: {
+        brokerage: {
+          omit: {
+            agentId: true,
+            agencyId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
+
+    return agent ? this.withAssetUrls(agent) : null;
   }
 
   findAll() {
@@ -59,10 +111,17 @@ export class AgentsService {
     });
   }
 
-  findOne(id: string) {
-    return this.prisma.agent.findUnique({
+  async findOne(id: string) {
+    const agent = await this.prisma.agent.findUnique({
       where: { id },
+      include: { brokerage: true },
     });
+
+    if (!agent) {
+      return null;
+    }
+
+    return this.withAssetUrls(agent);
   }
 
   async getFeedbackQuestions(agentId: string) {
@@ -125,13 +184,23 @@ export class AgentsService {
 
   async update(id: string, updateAgentDto: UpdateAgentDto) {
     await this.ensureAgentExists(id);
-    const { primaryColor, secondaryColor, accentColor, ...agentData } =
-      updateAgentDto;
+    const {
+      primaryColor,
+      secondaryColor,
+      accentColor,
+      brokerage,
+      ...agentData
+    } = updateAgentDto;
 
-    return this.prisma.agent.update({
+    const brokerageUpdate = brokerage
+      ? await this.buildBrokerageUpdate(id, brokerage)
+      : undefined;
+
+    await this.prisma.agent.update({
       where: { id },
       data: {
         ...agentData,
+        ...(brokerageUpdate && { brokerage: brokerageUpdate }),
         ...(primaryColor !== undefined && {
           primaryColor: this.normalizeHexColor(primaryColor),
         }),
@@ -143,10 +212,39 @@ export class AgentsService {
         }),
       },
     });
+
+    return this.findProfile(id);
   }
 
   remove(id: number) {
     return `This action removes a #${id} agent`;
+  }
+
+  private async buildBrokerageUpdate(
+    agentId: string,
+    brokerage: NonNullable<UpdateAgentDto['brokerage']>,
+  ) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { id: agentId },
+      select: { brandingLocked: true, brokerage: { select: { id: true } } },
+    });
+
+    if (agent?.brandingLocked) {
+      throw new ForbiddenException('Brokerage is managed by your agency.');
+    }
+
+    const { address, ...fields } = brokerage;
+    const data = { ...fields, ...address };
+
+    if (agent?.brokerage) {
+      return { update: data };
+    }
+
+    if (!brokerage.name) {
+      throw new BadRequestException('Brokerage name is required.');
+    }
+
+    return { create: { ...data, name: brokerage.name } };
   }
 
   private generateSlug(firstName: string, lastName: string): string {
@@ -158,7 +256,7 @@ export class AgentsService {
       .replace(/-+/g, '-');
   }
 
-  private async generateUniqueSlug(
+  async generateUniqueSlug(
     firstName: string,
     lastName: string,
   ): Promise<string> {
@@ -184,5 +282,61 @@ export class AgentsService {
   private normalizeHexColor(color?: string): string | null {
     if (!color) return null;
     return color.startsWith('#') ? color : `#${color}`;
+  }
+
+  async completeAssetUpload(
+    agentId: string,
+    type: 'headshot' | 'logo',
+    key: string,
+  ) {
+    if (!this.storageService.validateAgentAssetKey(agentId, type, key)) {
+      throw new BadRequestException('Invalid asset key.');
+    }
+
+    const agent = await this.prisma.agent.findUnique({
+      where: {
+        id: agentId,
+      },
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Agent not found.');
+    }
+
+    const previousKey = type === 'headshot' ? agent.headshotUrl : agent.logoUrl;
+
+    await this.prisma.agent.update({
+      where: {
+        id: agentId,
+      },
+      data: type === 'headshot' ? { headshotUrl: key } : { logoUrl: key },
+    });
+
+    if (previousKey && previousKey !== key) {
+      await this.storageService.delete(previousKey);
+    }
+
+    return this.findProfile(agentId);
+  }
+
+  public async withAssetUrls<
+    T extends {
+      logoUrl: string | null;
+      headshotUrl: string | null;
+    },
+  >(agent: T): Promise<T> {
+    const [logoUrl, headshotUrl] = await Promise.all([
+      agent.logoUrl ? this.storageService.createReadUrl(agent.logoUrl) : null,
+
+      agent.headshotUrl
+        ? this.storageService.createReadUrl(agent.headshotUrl)
+        : null,
+    ]);
+
+    return {
+      ...agent,
+      logoUrl,
+      headshotUrl,
+    };
   }
 }

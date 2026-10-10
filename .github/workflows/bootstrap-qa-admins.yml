@@ -1,0 +1,91 @@
+name: Bootstrap QA Platform Admins
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::545009862799:role/qrohaa-github-qa-deploy
+          aws-region: us-east-1
+
+      - name: Get QA network configuration
+        id: network
+        run: |
+          SERVICE_JSON=$(aws ecs describe-services \
+            --cluster qrohaa \
+            --services qrohaa-qa-backend-service-vi76oknv)
+
+          SUBNETS=$(echo "$SERVICE_JSON" | jq -r '.services[0].networkConfiguration.awsvpcConfiguration.subnets | join(",")')
+          SECURITY_GROUPS=$(echo "$SERVICE_JSON" | jq -r '.services[0].networkConfiguration.awsvpcConfiguration.securityGroups | join(",")')
+          ASSIGN_PUBLIC_IP=$(echo "$SERVICE_JSON" | jq -r '.services[0].networkConfiguration.awsvpcConfiguration.assignPublicIp')
+
+          echo "subnets=$SUBNETS" >> "$GITHUB_OUTPUT"
+          echo "security_groups=$SECURITY_GROUPS" >> "$GITHUB_OUTPUT"
+          echo "assign_public_ip=$ASSIGN_PUBLIC_IP" >> "$GITHUB_OUTPUT"
+
+      - name: Run platform-admin bootstrap
+        env:
+          ADMIN_SUBS: ${{ secrets.PLATFORM_ADMIN_COGNITO_SUBS }}
+        run: |
+          if [ -z "$ADMIN_SUBS" ]; then
+            echo "Missing PLATFORM_ADMIN_COGNITO_SUBS secret"
+            exit 1
+          fi
+
+          OVERRIDES=$(jq -nc \
+            --arg subs "$ADMIN_SUBS" \
+            '{
+              containerOverrides: [{
+                name: "qrohaa-backend",
+                command: ["npm", "run", "bootstrap:platform-admins"],
+                environment: [
+                  {
+                    name: "PLATFORM_ADMIN_COGNITO_SUBS",
+                    value: $subs
+                  }
+                ]
+              }]
+            }')
+
+          TASK_ARN=$(aws ecs run-task \
+            --cluster qrohaa \
+            --launch-type FARGATE \
+            --task-definition qrohaa-qa-backend:13 \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ steps.network.outputs.subnets }}],securityGroups=[${{ steps.network.outputs.security_groups }}],assignPublicIp=${{ steps.network.outputs.assign_public_ip }}}" \
+            --overrides "$OVERRIDES" \
+            --query 'tasks[0].taskArn' \
+            --output text)
+
+          if [ -z "$TASK_ARN" ] || [ "$TASK_ARN" = "None" ]; then
+            echo "ECS task did not start"
+            exit 1
+          fi
+
+          echo "Bootstrap task: $TASK_ARN"
+
+          aws ecs wait tasks-stopped \
+            --cluster qrohaa \
+            --tasks "$TASK_ARN"
+
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster qrohaa \
+            --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text)
+
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "Bootstrap failed with exit code: $EXIT_CODE"
+            exit 1
+          fi
+
+          echo "QA platform-admin bootstrap completed successfully."

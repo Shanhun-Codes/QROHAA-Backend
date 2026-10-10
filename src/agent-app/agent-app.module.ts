@@ -1,9 +1,25 @@
 import { Module } from '@nestjs/common';
 import { LeadsModule } from 'src/leads/leads.module';
+import { OpenHousesModule } from 'src/open-houses/open-houses.module';
+import { AgentsModule } from 'src/agents/agents.module';
+import { PropertiesModule } from 'src/properties/properties.module';
 import { AgentAppController } from './agent-app.controller';
+import { FeedbackQuestionsModule } from 'src/feedback-questions/feedback-questions.module';
+import { NotesModule } from 'src/notes/notes.module';
+import { AuthModule } from 'src/auth/auth.module';
+import { StorageModule } from 'src/storage/storage.module';
 
 @Module({
-  imports: [LeadsModule],
+  imports: [
+    LeadsModule,
+    OpenHousesModule,
+    AgentsModule,
+    PropertiesModule,
+    FeedbackQuestionsModule,
+    NotesModule,
+    AuthModule,
+    StorageModule,
+  ],
   controllers: [AgentAppController],
 })
 export class AgentAppModule {}

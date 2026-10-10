@@ -6,6 +6,18 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { publicLeadForm } from './config/lead-form.config';
 import { SubmitPublicFeedbackDto } from './dto/submit-public-feedback.dto';
+import { PublicSubmissionProtectionService } from './public-submission-protection.service';
+import { AgentsService } from 'src/agents/agents.service';
+
+const publicBrokerageSelect = {
+  name: true,
+  licenseNumber: true,
+  street: true,
+  street2: true,
+  city: true,
+  state: true,
+  zip: true,
+} as const;
 
 const defaultBranding = {
   primaryColor: '#1E3A5F',
@@ -15,7 +27,11 @@ const defaultBranding = {
 
 @Injectable()
 export class PublicService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly submissionProtection: PublicSubmissionProtectionService,
+    private readonly agentService: AgentsService,
+  ) {}
 
   findPublicAgentBySlug(slug: string) {
     return this.prisma.agent.findUnique({
@@ -26,7 +42,7 @@ export class PublicService {
         lastName: true,
         email: true,
         phone: true,
-        brokerageName: true,
+        brokerage: { select: publicBrokerageSelect },
         headline: true,
         logoUrl: true,
         headshotUrl: true,
@@ -35,7 +51,9 @@ export class PublicService {
   }
 
   findOpenHouseByPublicCode(publicCode: string) {
-    return this.prisma.openHouse.findUnique({ where: { publicCode } });
+    return this.prisma.openHouse.findUnique({
+      where: { publicCode },
+    });
   }
 
   async getConfigurationData(slug: string, publicCode: string) {
@@ -47,7 +65,8 @@ export class PublicService {
         lastName: true,
         email: true,
         phone: true,
-        brokerageName: true,
+        realEstateLicenseNumber: true,
+        brokerage: { select: publicBrokerageSelect },
         headline: true,
         logoUrl: true,
         headshotUrl: true,
@@ -57,8 +76,17 @@ export class PublicService {
       },
     });
 
+    const agent = agentData
+      ? await this.agentService.withAssetUrls(agentData)
+      : null;
+
     const openHouseData = await this.prisma.openHouse.findFirst({
-      where: { publicCode, agent: { slug } },
+      where: {
+        publicCode,
+        agent: {
+          slug,
+        },
+      },
       select: {
         publicCode: true,
         startsAt: true,
@@ -74,8 +102,14 @@ export class PublicService {
           },
         },
         openHouseFeedbackQuestions: {
-          where: { question: { active: true } },
-          orderBy: { sortOrder: 'asc' },
+          where: {
+            question: {
+              active: true,
+            },
+          },
+          orderBy: {
+            sortOrder: 'asc',
+          },
           select: {
             required: true,
             sortOrder: true,
@@ -87,8 +121,14 @@ export class PublicService {
                 type: true,
                 category: true,
                 options: {
-                  orderBy: { sortOrder: 'asc' },
-                  select: { label: true, value: true, sortOrder: true },
+                  orderBy: {
+                    sortOrder: 'asc',
+                  },
+                  select: {
+                    label: true,
+                    value: true,
+                    sortOrder: true,
+                  },
                 },
               },
             },
@@ -96,17 +136,19 @@ export class PublicService {
         },
       },
     });
+
     return {
-      agent: agentData && {
-        slug: agentData.slug,
-        firstName: agentData.firstName,
-        lastName: agentData.lastName,
-        email: agentData.email,
-        phone: agentData.phone,
-        brokerageName: agentData.brokerageName,
-        headline: agentData.headline,
-        logoUrl: agentData.logoUrl,
-        headshotUrl: agentData.headshotUrl,
+      agent: agent && {
+        slug: agent.slug,
+        firstName: agent.firstName,
+        lastName: agent.lastName,
+        email: agent.email,
+        phone: agent.phone,
+        realEstateLicenseNumber: agent.realEstateLicenseNumber,
+        brokerage: agent.brokerage,
+        headline: agent.headline,
+        logoUrl: agent.logoUrl,
+        headshotUrl: agent.headshotUrl,
       },
       branding: {
         primaryColor: agentData?.primaryColor || defaultBranding.primaryColor,
@@ -141,9 +183,29 @@ export class PublicService {
     slug: string,
     publicCode: string,
     submitFeedbackDto: SubmitPublicFeedbackDto,
+    ipAddress: string,
+    browserToken?: string,
   ) {
+    if (submitFeedbackDto.website) {
+      throw new BadRequestException(
+        'Feedback submission could not be accepted.',
+      );
+    }
+
+    this.submissionProtection.assertAllowed(
+      slug,
+      publicCode,
+      ipAddress,
+      browserToken,
+    );
+
     const openHouse = await this.prisma.openHouse.findFirst({
-      where: { publicCode, agent: { slug } },
+      where: {
+        publicCode,
+        agent: {
+          slug,
+        },
+      },
       select: {
         id: true,
         agentId: true,
@@ -155,19 +217,40 @@ export class PublicService {
               select: {
                 key: true,
                 type: true,
-                options: { select: { value: true } },
+                options: {
+                  select: {
+                    value: true,
+                  },
+                },
               },
             },
           },
         },
       },
     });
-    if (!openHouse) throw new NotFoundException('Open house not found.');
 
-    const { feedbackAnswers, ...leadData } = submitFeedbackDto;
+    if (!openHouse) {
+      throw new NotFoundException('Open house not found.');
+    }
+
+    const {
+      feedbackAnswers,
+      website: _website,
+      ...leadData
+    } = submitFeedbackDto;
+
+    const normalizedLeadData = {
+      ...leadData,
+      firstName: leadData.firstName?.trim() || null,
+      lastName: leadData.lastName?.trim() || null,
+      email: leadData.email?.trim().toLowerCase() || null,
+      phone: this.normalizePhone(leadData.phone),
+    };
+
     const answerQuestionIds = feedbackAnswers.map(
       (answer) => answer.questionId,
     );
+
     if (new Set(answerQuestionIds).size !== answerQuestionIds.length) {
       throw new BadRequestException('Each question may only be answered once.');
     }
@@ -178,25 +261,30 @@ export class PublicService {
         selection,
       ]),
     );
+
     const missingRequiredQuestion = openHouse.openHouseFeedbackQuestions.find(
       (selection) =>
         selection.required && !answerQuestionIds.includes(selection.questionId),
     );
+
     if (missingRequiredQuestion) {
       throw new BadRequestException('A required feedback question is missing.');
     }
 
     for (const answer of feedbackAnswers) {
       const configuredQuestion = configuredQuestions.get(answer.questionId);
+
       if (!configuredQuestion) {
         throw new BadRequestException(
           'An answer references a question not assigned to this open house.',
         );
       }
+
       if (configuredQuestion.question.options.length) {
         const validValues = configuredQuestion.question.options.map(
           (option) => option.value,
         );
+
         if (!validValues.includes(answer.value)) {
           throw new BadRequestException(
             'An answer contains an invalid option value.',
@@ -206,33 +294,139 @@ export class PublicService {
     }
 
     const hasContact = Boolean(
-      leadData.email?.trim() || leadData.phone?.trim(),
+      normalizedLeadData.email || normalizedLeadData.phone,
     );
+
     const workingWithAgentQuestion = openHouse.openHouseFeedbackQuestions.find(
       (selection) => selection.question.key === 'working_with_agent',
     );
+
     const workingWithAgentAnswer = feedbackAnswers.find(
       (answer) => answer.questionId === workingWithAgentQuestion?.questionId,
     );
-    const createLead = hasContact && workingWithAgentAnswer?.value !== 'YES';
 
-    return this.prisma
-      .$transaction((transaction) =>
-        transaction.feedbackSubmission.create({
+    const shouldCreateNewLead =
+      hasContact && workingWithAgentAnswer?.value !== 'YES';
+
+    const answerFingerprint = JSON.stringify(
+      [...feedbackAnswers]
+        .sort((left, right) => left.questionId.localeCompare(right.questionId))
+        .map(({ questionId, value }) => ({
+          questionId,
+          value,
+        })),
+    );
+
+    const { submission, leadAction } = await this.prisma.$transaction(
+      async (transaction) => {
+        const existingLead = hasContact
+          ? await transaction.lead.findFirst({
+              where: {
+                agentId: openHouse.agentId,
+                OR: [
+                  ...(normalizedLeadData.email
+                    ? [{ email: normalizedLeadData.email }]
+                    : []),
+                  ...(normalizedLeadData.phone
+                    ? [{ phone: normalizedLeadData.phone }]
+                    : []),
+                ],
+              },
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+              },
+            })
+          : null;
+
+        if (existingLead) {
+          await transaction.lead.update({
+            where: {
+              id: existingLead.id,
+            },
+            data: {
+              firstName: existingLead.firstName ?? normalizedLeadData.firstName,
+              lastName: existingLead.lastName ?? normalizedLeadData.lastName,
+              email: existingLead.email ?? normalizedLeadData.email,
+              phone: existingLead.phone ?? normalizedLeadData.phone,
+            },
+          });
+        }
+
+        const shouldAttachLead = Boolean(existingLead) || shouldCreateNewLead;
+
+        const submission = await transaction.feedbackSubmission.create({
           data: {
-            openHouse: { connect: { id: openHouse.id } },
-            feedbackAnswers: { create: feedbackAnswers },
-            ...(createLead && {
-              lead: { create: { ...leadData, agentId: openHouse.agentId } },
+            openHouse: {
+              connect: {
+                id: openHouse.id,
+              },
+            },
+            feedbackAnswers: {
+              create: feedbackAnswers,
+            },
+            ...(shouldAttachLead && {
+              lead: existingLead
+                ? {
+                    connect: {
+                      id: existingLead.id,
+                    },
+                  }
+                : {
+                    create: {
+                      ...normalizedLeadData,
+                      agentId: openHouse.agentId,
+                    },
+                  },
             }),
           },
-          select: { id: true, leadId: true, createdAt: true },
-        }),
-      )
-      .then((submission) => ({
-        message: 'Feedback submitted successfully.',
-        submissionId: submission.id,
-        leadCreated: Boolean(submission.leadId),
-      }));
+          select: {
+            id: true,
+            leadId: true,
+            createdAt: true,
+          },
+        });
+
+        return {
+          submission,
+          leadAction: existingLead
+            ? 'LEAD_CONTACT_FOUND_AND_REUSED'
+            : shouldCreateNewLead
+              ? 'LEAD_CREATED'
+              : 'NO_LEAD_CREATED',
+        };
+      },
+    );
+
+    this.submissionProtection.recordSuccessfulSubmission(
+      slug,
+      publicCode,
+      ipAddress,
+      browserToken,
+      answerFingerprint,
+    );
+
+    return {
+      message: 'Feedback submitted successfully.',
+      submissionId: submission.id,
+      leadAction,
+    };
+  }
+
+  private normalizePhone(phone?: string | null): string | null {
+    if (!phone) {
+      return null;
+    }
+
+    let digits = phone.trim().replace(/\D/g, '');
+
+    if (digits.length === 11 && digits.startsWith('1')) {
+      digits = digits.slice(1);
+    }
+
+    return digits || null;
   }
 }

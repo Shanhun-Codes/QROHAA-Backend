@@ -1,31 +1,43 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AgentsModule } from './agents/agents.module';
-import { PropertyModule } from './property/property.module';
 import { PrismaService } from './prisma/prisma.service';
-import { OpenHouseModule } from './open-house/open-house.module';
+import { OpenHousesModule } from './open-houses/open-houses.module';
 import { PublicModule } from './public/public.module';
 import { FeedbackQuestionsModule } from './feedback-questions/feedback-questions.module';
-import { FeedbackSubmissionModule } from './feedback-submission/feedback-submission.module';
 import { LeadsModule } from './leads/leads.module';
 import { AgentAppModule } from './agent-app/agent-app.module';
+import { PropertiesModule } from './properties/properties.module';
+import { FeedbackSubmissionsModule } from './feedback-submissions/feedback-submissions.module';
+import { NotesModule } from './notes/notes.module';
+import { AuthModule } from './auth/auth.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
+import { StorageModule } from './storage/storage.module';
+import { BrokerageModule } from './brokerage/brokerage.module';
+import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 
 @Module({
   imports: [
-    AgentsModule,
-    PropertyModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [`.env.${process.env.NODE_ENV ?? 'local'}`, '.env.local'],
     }),
-    PropertyModule,
-    OpenHouseModule,
+    AgentsModule,
+    PropertiesModule,
+    OpenHousesModule,
     PublicModule,
     FeedbackQuestionsModule,
-    FeedbackSubmissionModule,
+    FeedbackSubmissionsModule,
     LeadsModule,
     AgentAppModule,
+    NotesModule,
+    AuthModule,
+    PrismaModule,
+    OnboardingModule,
+    StorageModule,
+    BrokerageModule,
+    PlatformAdminModule,
   ],
-  providers: [PrismaService],
 })
 export class AppModule {}

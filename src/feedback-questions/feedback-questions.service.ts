@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateFeedbackQuestionDto } from './dto/create-feedback-question.dto';
 import { UpdateFeedbackQuestionDto } from './dto/update-feedback-question.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { UpdateAgentFeedbackQuestionDto } from './dto/update-agent-feedback-question.dto';
 
 @Injectable()
 export class FeedbackQuestionsService {
@@ -35,30 +36,109 @@ export class FeedbackQuestionsService {
     return question;
   }
 
-  async update(
-    id: string,
-    updateFeedbackQuestionDto: UpdateFeedbackQuestionDto,
-  ) {
-    await this.findOne(id);
-    const { options, ...question } = updateFeedbackQuestionDto;
+  async update(id: string, dto: UpdateFeedbackQuestionDto) {
+    const { options, ...question } = dto;
+
     return this.prisma.$transaction(async (transaction) => {
-      if (options)
+      const existingQuestion = await transaction.feedbackQuestion.findUnique({
+        where: { id },
+      });
+
+      if (!existingQuestion) {
+        throw new NotFoundException(`Feedback question ${id} was not found`);
+      }
+
+      if (options !== undefined) {
         await transaction.feedbackQuestionOption.deleteMany({
           where: { questionId: id },
         });
+      }
+
       return transaction.feedbackQuestion.update({
         where: { id },
         data: {
           ...question,
-          options: options ? { createMany: { data: options } } : undefined,
+          options:
+            options !== undefined
+              ? {
+                  createMany: {
+                    data: options,
+                  },
+                }
+              : undefined,
         },
-        include: { options: { orderBy: { sortOrder: 'asc' } } },
+        include: {
+          options: {
+            orderBy: {
+              sortOrder: 'asc',
+            },
+          },
+        },
       });
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-    return this.prisma.feedbackQuestion.delete({ where: { id } });
+  async updateAgentQuestions(
+    agentId: string,
+    questions: UpdateAgentFeedbackQuestionDto[],
+  ) {
+    await this.prisma.$transaction(
+      questions.map((question) =>
+        this.prisma.agentFeedbackQuestion.upsert({
+          where: {
+            agentId_questionId: {
+              agentId,
+              questionId: question.questionId,
+            },
+          },
+          update: {
+            active: question.active,
+            required: question.required,
+            sortOrder: question.sortOrder,
+            printable: question.printable,
+            printableSortOrder: question.printableSortOrder,
+          },
+          create: {
+            agentId,
+            questionId: question.questionId,
+            active: question.active,
+            required: question.required,
+            sortOrder: question.sortOrder!,
+          },
+        }),
+      ),
+    );
+
+    return this.findAgentDefaultFeedbackQuestions(agentId);
   }
+
+  findAgentDefaultFeedbackQuestions(agentId: string) {
+    return this.prisma.agentFeedbackQuestion.findMany({
+      where: {
+        agentId,
+        active: true,
+      },
+
+      include: {
+        question: {
+          include: {
+            options: {
+              orderBy: {
+                sortOrder: 'asc',
+              },
+            },
+          },
+        },
+      },
+
+      orderBy: {
+        sortOrder: 'asc',
+      },
+    });
+  }
+
+  // async remove(id: string) {
+  //   await this.findOne(id);
+  //   return this.prisma.feedbackQuestion.delete({ where: { id } });
+  // }
 }

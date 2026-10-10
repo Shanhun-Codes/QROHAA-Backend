@@ -6,9 +6,13 @@ jest.mock('src/prisma/prisma.service', () => ({
 
 import { PublicController } from './public.controller';
 import { PublicService } from './public.service';
+import { PublicSubmissionProtectionService } from './public-submission-protection.service';
 
 describe('Public resource', () => {
-  const transaction = { feedbackSubmission: { create: jest.fn() } } as any;
+  const transaction = {
+    lead: { findFirst: jest.fn() },
+    feedbackSubmission: { create: jest.fn() },
+  } as any;
   const prisma = {
     agent: { findUnique: jest.fn() },
     openHouse: { findUnique: jest.fn(), findFirst: jest.fn() },
@@ -16,11 +20,16 @@ describe('Public resource', () => {
       callback(transaction),
     ),
   } as any;
-  const service = new PublicService(prisma);
+  const submissionProtection = {
+    assertAllowed: jest.fn(),
+    recordSuccessfulSubmission: jest.fn(),
+  } as unknown as PublicSubmissionProtectionService;
+  const service = new PublicService(prisma, submissionProtection);
   const controller = new PublicController(service);
 
   beforeEach(() => {
     jest.clearAllMocks();
+    transaction.lead.findFirst.mockResolvedValue(null);
   });
 
   it('selects public agent profile fields including email', () => {
@@ -117,14 +126,19 @@ describe('Public resource', () => {
     });
 
     await expect(
-      service.submitFeedback('michael-elder', 'CODE1234', {
-        firstName: 'Jordan',
-        email: 'jordan@example.com',
-        feedbackAnswers: [{ questionId: 'question-1', value: '4' }],
-      }),
+      service.submitFeedback(
+        'michael-elder',
+        'CODE1234',
+        {
+          firstName: 'Jordan',
+          email: 'jordan@example.com',
+          feedbackAnswers: [{ questionId: 'question-1', value: '4' }],
+        },
+        '127.0.0.1',
+      ),
     ).resolves.toMatchObject({
       message: 'Feedback submitted successfully.',
-      leadCreated: true,
+      leadAction: 'LEAD_CREATED',
     });
 
     expect(transaction.feedbackSubmission.create).toHaveBeenCalledWith(
@@ -138,6 +152,51 @@ describe('Public resource', () => {
               agentId: 'agent-1',
             },
           },
+        }),
+      }),
+    );
+  });
+
+  it('connects a submission to an existing lead with the same agent email', async () => {
+    prisma.openHouse.findFirst.mockResolvedValue({
+      id: 'open-house-1',
+      agentId: 'agent-1',
+      openHouseFeedbackQuestions: [
+        {
+          required: false,
+          questionId: 'question-1',
+          question: {
+            key: 'overall_appeal_rating',
+            type: 'RATING',
+            options: [{ value: '4' }],
+          },
+        },
+      ],
+    });
+    transaction.lead.findFirst.mockResolvedValue({ id: 'existing-lead-1' });
+    transaction.feedbackSubmission.create.mockResolvedValue({
+      id: 'submission-2',
+      leadId: 'existing-lead-1',
+    });
+
+    await expect(
+      service.submitFeedback(
+        'public-agent',
+        'CODE1234',
+        {
+          email: 'jordan@example.com',
+          feedbackAnswers: [{ questionId: 'question-1', value: '4' }],
+        },
+        '127.0.0.1',
+      ),
+    ).resolves.toMatchObject({
+      leadAction: 'LEAD_CONTACT_FOUND_AND_REUSED',
+    });
+
+    expect(transaction.feedbackSubmission.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          lead: { connect: { id: 'existing-lead-1' } },
         }),
       }),
     );
@@ -165,12 +224,17 @@ describe('Public resource', () => {
     });
 
     await expect(
-      service.submitFeedback('michael-elder', 'CODE1234', {
-        firstName: 'Jordan',
-        email: 'jordan@example.com',
-        feedbackAnswers: [{ questionId: 'question-1', value: 'YES' }],
-      }),
-    ).resolves.toMatchObject({ leadCreated: false });
+      service.submitFeedback(
+        'michael-elder',
+        'CODE1234',
+        {
+          firstName: 'Jordan',
+          email: 'jordan@example.com',
+          feedbackAnswers: [{ questionId: 'question-1', value: 'YES' }],
+        },
+        '127.0.0.1',
+      ),
+    ).resolves.toMatchObject({ leadAction: 'NO_LEAD_CREATED' });
 
     expect(transaction.feedbackSubmission.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -200,10 +264,15 @@ describe('Public resource', () => {
       leadId: 'lead-1',
     });
 
-    await service.submitFeedback('michael-elder', 'CODE1234', {
-      email: 'jordan@example.com',
-      feedbackAnswers: [{ questionId: 'question-1', value: '4' }],
-    });
+    await service.submitFeedback(
+      'michael-elder',
+      'CODE1234',
+      {
+        email: 'jordan@example.com',
+        feedbackAnswers: [{ questionId: 'question-1', value: '4' }],
+      },
+      '127.0.0.1',
+    );
 
     expect(transaction.feedbackSubmission.create).toHaveBeenCalledWith(
       expect.objectContaining({

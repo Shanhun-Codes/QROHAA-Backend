@@ -1,12 +1,334 @@
-import { Controller, Get } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import { LeadStatusType, NoteEntityType } from 'generated/prisma/enums';
+import { AgentsService } from 'src/agents/agents.service';
+import type { Response } from 'express';
+import { UpdateAgentDto } from 'src/agents/dto/update-agent.dto';
+import { AgentAuthGuard } from 'src/auth/agent-auth.guard';
+import { CurrentAgentId } from 'src/auth/current-agent-id.decorator';
+import { UpdateAgentFeedbackQuestionDto } from 'src/feedback-questions/dto/update-agent-feedback-question.dto';
+import { FeedbackQuestionsService } from 'src/feedback-questions/feedback-questions.service';
+import { CreateLeadDto } from 'src/leads/dto/create-lead.dto';
 import { LeadsService } from 'src/leads/leads.service';
+import { CreateNoteDto } from 'src/notes/dto/create-note.dto';
+import { UpdateNoteDto } from 'src/notes/dto/update-note.dto';
+import { NotesService } from 'src/notes/notes.service';
+import { CreateOpenHousesDto } from 'src/open-houses/dto/create-open-houses.dto';
+import { UpdateOpenHouseDto } from 'src/open-houses/dto/update-open-houses.dto';
+import { OpenHousePdfService } from 'src/open-houses/open-house-pdf.service';
+import { OpenHousesService } from 'src/open-houses/open-houses.service';
+import { CreatePropertiesDto } from 'src/properties/dto/create-properties.dto';
+import { PropertiesService } from 'src/properties/properties.service';
+import { CreateAgentUploadUrlDto } from 'src/storage/dto/create-agent-upload-url.dto';
+import { StorageService } from 'src/storage/storage.service';
+import { CompleteAgentUploadDto } from 'src/storage/dto/complete-agent-upload.dto';
+import { UpdatePropertiesDto } from 'src/properties/dto/update-properties.dto';
 
+@UseGuards(AgentAuthGuard)
 @Controller('agent-app')
 export class AgentAppController {
-  constructor(private readonly leadsService: LeadsService) {}
+  constructor(
+    private readonly leadsService: LeadsService,
+    private readonly openHouseService: OpenHousesService,
+    private readonly agentsService: AgentsService,
+    private readonly propertyService: PropertiesService,
+    private readonly notesService: NotesService,
+    private readonly feedbackQuestionService: FeedbackQuestionsService,
+    private readonly openHousePdfService: OpenHousePdfService,
+    private readonly storageService: StorageService,
+  ) {}
+
+  // ======================================================
+  // AGENTS
+  // ======================================================
+
+  @Patch('agents')
+  updateAgent(
+    @CurrentAgentId() agentId: string,
+    @Body() updateAgentDto: UpdateAgentDto,
+  ) {
+    return this.agentsService.update(agentId, updateAgentDto);
+  }
+
+  @Post('assets/upload-url')
+  createAgentAssetUploadUrl(
+    @CurrentAgentId() agentId: string,
+    @Body() dto: CreateAgentUploadUrlDto,
+  ) {
+    return this.storageService.createAgentUploadUrl(
+      agentId,
+      dto.type,
+      dto.contentType,
+    );
+  }
+
+  @Post('assets/complete')
+  async completeAgentAssetUpload(
+    @CurrentAgentId() agentId: string,
+    @Body() dto: CompleteAgentUploadDto,
+  ) {
+    return this.agentsService.completeAssetUpload(agentId, dto.type, dto.key);
+  }
+
+  // ======================================================
+  // LEADS
+  // ======================================================
 
   @Get('leads')
-  findLeads() {
-    return this.leadsService.findAllLeadsWithSelectedFeedback();
+  findAllAgentLeads(@CurrentAgentId() agentId: string) {
+    return this.leadsService.findAllAgentLeads(agentId);
+  }
+
+  @Get('leads/:leadId')
+  findLeadDetail(
+    @CurrentAgentId() agentId: string,
+    @Param('leadId') leadId: string,
+  ) {
+    return this.leadsService.findLeadDetail(agentId, leadId);
+  }
+
+  @Post('leads')
+  createLeadFromAgentApp(
+    @CurrentAgentId() agentId: string,
+    @Body() createLeadDto: CreateLeadDto,
+  ) {
+    return this.leadsService.create(agentId, createLeadDto);
+  }
+
+  @Patch('leads/status')
+  updateLeadStatusFromMultiSelect(
+    @CurrentAgentId() agentId: string,
+    @Body('leadIds') leadIds: string[],
+    @Body('status') status: LeadStatusType,
+  ) {
+    return this.leadsService.updateLeadStatusFromMultiSelect(
+      agentId,
+      leadIds,
+      status,
+    );
+  }
+
+  // ======================================================
+  // LEAD NOTES
+  // ======================================================
+
+  @Get('leads/:leadId/notes')
+  getLeadNotes(
+    @CurrentAgentId() agentId: string,
+    @Param('leadId') leadId: string,
+  ) {
+    return this.notesService.findAllBySubject(
+      agentId,
+      NoteEntityType.LEAD,
+      leadId,
+    );
+  }
+
+  @Post('leads/:leadId/notes')
+  createLeadNote(
+    @CurrentAgentId() agentId: string,
+    @Param('leadId') leadId: string,
+    @Body() createNoteDto: CreateNoteDto,
+  ) {
+    return this.notesService.create(
+      agentId,
+      NoteEntityType.LEAD,
+      leadId,
+      createNoteDto,
+    );
+  }
+
+  @Patch('leads/:leadId/notes/:noteId')
+  editNote(
+    @CurrentAgentId() agentId: string,
+    @Param('leadId') leadId: string,
+    @Param('noteId') noteId: string,
+    @Body() updateNoteDto: UpdateNoteDto,
+  ) {
+    return this.notesService.editNote(agentId, leadId, noteId, updateNoteDto);
+  }
+
+  // ======================================================
+  // PROPERTIES
+  // ======================================================
+
+  @Get('properties')
+  getAllAgentProperties(@CurrentAgentId() agentId: string) {
+    return this.propertyService.findAllAgentProperties(agentId);
+  }
+
+  @Post('properties')
+  createProperty(
+    @CurrentAgentId() agentId: string,
+    @Body() createPropertyDto: CreatePropertiesDto,
+  ) {
+    return this.propertyService.create(agentId, createPropertyDto);
+  }
+
+  @Patch('properties/:propertyId')
+  updateProperty(
+    @CurrentAgentId() agentId: string,
+    @Param('propertyId') propertyId: string,
+    @Body() updatePropertyDto: UpdatePropertiesDto,
+  ) {
+    return this.propertyService.update(agentId, propertyId, updatePropertyDto);
+  }
+
+  // ======================================================
+  // PROPERTY NOTES
+  // ======================================================
+
+  @Post('properties/:propertyId/notes')
+  createPropertyNote(
+    @CurrentAgentId() agentId: string,
+    @Param('propertyId') propertyId: string,
+    @Body() createNoteDto: CreateNoteDto,
+  ) {
+    return this.notesService.create(
+      agentId,
+      NoteEntityType.PROPERTY,
+      propertyId,
+      createNoteDto,
+    );
+  }
+
+  // ======================================================
+  // OPEN HOUSES
+  // ======================================================
+
+  @Get('open-houses')
+  getAllAgentOpenHouses(@CurrentAgentId() agentId: string) {
+    return this.openHouseService.findAllByAgentId(agentId);
+  }
+
+  @Get('open-houses/:openHouseId/feedback-form/pdf')
+  async downloadOpenHouseFeedbackForm(
+    @CurrentAgentId() agentId: string,
+    @Param('openHouseId') openHouseId: string,
+    @Res() response: Response,
+  ) {
+    const pdf = await this.openHousePdfService.generateFeedbackForm(
+      agentId,
+      openHouseId,
+    );
+
+    response.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="open-house-feedback-form.pdf"`,
+      'Content-Length': pdf.length,
+    });
+
+    response.end(pdf);
+  }
+
+  @Get('open-houses/:openHouseId/flyer/pdf')
+  async downloadOpenHouseFlyer(
+    @CurrentAgentId() agentId: string,
+    @Param('openHouseId') openHouseId: string,
+    @Res() response: Response,
+  ) {
+    const pdf = await this.openHousePdfService.generateFlyer(
+      agentId,
+      openHouseId,
+    );
+
+    response.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'attachment; filename="open-house-flyer.pdf"',
+      'Content-Length': pdf.length,
+    });
+
+    response.end(pdf);
+  }
+
+  @Get('open-houses/:openHouseId')
+  getOpenHouseDetail(
+    @CurrentAgentId() agentId: string,
+    @Param('openHouseId') openHouseId: string,
+  ) {
+    return this.openHouseService.findOpenHouseDetail(agentId, openHouseId);
+  }
+
+  @Post('open-houses')
+  createOpenHouse(
+    @CurrentAgentId() agentId: string,
+    @Body() createOpenHouseDto: CreateOpenHousesDto,
+  ) {
+    return this.openHouseService.create(agentId, createOpenHouseDto);
+  }
+
+  @Patch('open-houses/:openHouseId')
+  updateOpenHouse(
+    @CurrentAgentId() agentId: string,
+    @Param('openHouseId') openHouseId: string,
+    @Body() updateOpenHouseDto: UpdateOpenHouseDto,
+  ) {
+    return this.openHouseService.update(
+      agentId,
+      openHouseId,
+      updateOpenHouseDto,
+    );
+  }
+
+  @Delete('open-houses')
+  removeBulkOpenHouses(
+    @CurrentAgentId() agentId: string,
+    @Body() openHouseIds: string[],
+  ) {
+    return this.openHouseService.removeBulk(agentId, openHouseIds);
+  }
+
+  // ======================================================
+  // OPEN HOUSE NOTES
+  // ======================================================
+
+  @Post('open-houses/:openHouseId/notes')
+  createOpenHouseNote(
+    @CurrentAgentId() agentId: string,
+    @Param('openHouseId') openHouseId: string,
+    @Body() createNoteDto: CreateNoteDto,
+  ) {
+    return this.notesService.create(
+      agentId,
+      NoteEntityType.OPEN_HOUSE,
+      openHouseId,
+      createNoteDto,
+    );
+  }
+
+  // ======================================================
+  // FEEDBACK QUESTIONS
+  // ======================================================
+
+  @Get('feedback-questions')
+  getAllFeedbackQuestions() {
+    return this.feedbackQuestionService.findAll();
+  }
+
+  @Get('feedback-questions/defaults')
+  getAgentFeedbackQuestions(@CurrentAgentId() agentId: string) {
+    return this.feedbackQuestionService.findAgentDefaultFeedbackQuestions(
+      agentId,
+    );
+  }
+
+  @Patch('feedback-questions/defaults')
+  updateAgentFeedbackQuestions(
+    @CurrentAgentId() agentId: string,
+    @Body() questions: UpdateAgentFeedbackQuestionDto[],
+  ) {
+    return this.feedbackQuestionService.updateAgentQuestions(
+      agentId,
+      questions,
+    );
   }
 }

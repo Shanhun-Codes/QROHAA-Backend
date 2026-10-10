@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AgentsService } from './agents.service';
-import { AgentsController } from './agents.controller';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { StorageModule } from 'src/storage/storage.module';
 
 @Module({
-  imports: [ConfigModule],
-  controllers: [AgentsController],
+  imports: [ConfigModule, StorageModule],
+  controllers: [],
   providers: [AgentsService, PrismaService],
+  exports: [AgentsService],
 })
 export class AgentsModule {}

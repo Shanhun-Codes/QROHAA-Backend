@@ -16,7 +16,4 @@ export class CreateLeadDto {
   @IsOptional()
   @IsPhoneNumber('US')
   phone?: string | null;
-
-  @IsString()
-  agentId!: string;
 }

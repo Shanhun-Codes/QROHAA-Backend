@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { PublicService } from './public.service';
 import { SubmitPublicFeedbackDto } from './dto/submit-public-feedback.dto';
 
@@ -29,11 +30,15 @@ export class PublicController {
     @Param('slug') slug: string,
     @Param('publicCode') publicCode: string,
     @Body() submitFeedbackDto: SubmitPublicFeedbackDto,
+    @Req() request: Request,
   ) {
+    const browserToken = request.header('x-submission-browser-token');
     return this.publicService.submitFeedback(
       slug,
       publicCode,
       submitFeedbackDto,
+      request.ip ?? 'unknown',
+      browserToken,
     );
   }
 }

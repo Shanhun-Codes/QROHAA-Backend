@@ -18,10 +18,12 @@ model Agent {
   slug      String @unique
   firstName String
   lastName  String
-  email     String @unique
+  email     String
   phone     String
 
   brokerageName String?
+
+  realEstateLicenseNumber String?
 
   headline       String?
   logoUrl        String?
@@ -33,11 +35,185 @@ model Agent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  openHouses OpenHouse[]
-
   agentFeedbackQuestions AgentFeedbackQuestion[]
+  openHouses             OpenHouse[]
+  properties             Property[]
+  leads                  Lead[]
+  notes                  Note[]
+  user                   User?
 
-  leads Lead[]
+  // Brokerage info owned and editable by this agent (self-managed).
+  brokerage Brokerage?
+
+  // Set when created by an agency; brokerage and branding are then inherited from it.
+  agencyId String?
+  agency   Agency? @relation(fields: [agencyId], references: [id])
+
+  // Blocks the agent from editing brokerage/branding when an agency manages them.
+  brandingLocked Boolean @default(false)
+
+  @@index([agencyId])
+}
+
+// Brokerage info. Owned by an agent today; will be owned by an agency later and
+// shown (read-only) to the agents the agency creates.
+model Brokerage {
+  id String @id @default(cuid())
+
+  name          String
+  licenseNumber String?
+  phone         String?
+  email         String?
+  websiteUrl    String?
+
+  // Address columns use the same names as Property so one shared TS type fits both.
+  street  String?
+  street2 String?
+  city    String?
+  state   String?
+  zip     String?
+
+  // Self-managed brokerage owner.
+  agentId String? @unique
+  agent   Agent?  @relation(fields: [agentId], references: [id])
+
+  // Agency-owned brokerage.
+  agencyId String? @unique
+  agency   Agency? @relation(fields: [agencyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Owns a brokerage and branding passed down to the agents it creates.
+model Agency {
+  id   String @id @default(cuid())
+  name String
+
+  headline       String?
+  logoUrl        String?
+  primaryColor   String?
+  secondaryColor String?
+  accentColor    String?
+
+  // Subscription tier key (e.g. "tier1"); tier definitions live in billing, not here.
+  plan      String?
+  // Max agents the agency may create, copied from the plan; null = unlimited.
+  seatLimit Int?
+
+  brokerage    Brokerage?
+  agents       Agent[]
+  users        User[]
+  invitations  Invitation[]
+  entitlements AccessEntitlement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum UserRole {
+  AGENT
+  AGENCY_ADMIN
+  PLATFORM_ADMIN
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum InvitationAccountType {
+  AGENT
+  AGENCY
+}
+
+enum AccessType {
+  BETA
+  PAID
+}
+
+enum AccessStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+model User {
+  id         String        @id @default(cuid())
+  cognitoSub String        @unique
+  email      String        @unique
+  role       UserRole      @default(AGENT)
+  status     AccountStatus @default(PENDING)
+
+  agencyId String?
+  agency   Agency? @relation(fields: [agencyId], references: [id])
+
+  agentId String? @unique
+  agent   Agent?  @relation(fields: [agentId], references: [id])
+
+  entitlements AccessEntitlement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Invitation {
+  id            String                @id @default(cuid())
+  email         String
+  tokenHash     String                @unique
+  role          UserRole
+  accountType   InvitationAccountType
+  agencyId      String?
+  agency        Agency?               @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  createdBySub  String
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  redeemedAt    DateTime?
+  redeemedBySub String?
+  createdAt     DateTime              @default(now())
+
+  @@index([email, expiresAt])
+  @@index([revokedAt, redeemedAt])
+}
+
+model AccessEntitlement {
+  id                   String       @id @default(cuid())
+  type                 AccessType
+  status               AccessStatus @default(ACTIVE)
+  startsAt             DateTime     @default(now())
+  expiresAt            DateTime?
+  revokedAt            DateTime?
+  userId               String?
+  user                 User?        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  agencyId             String?
+  agency               Agency?      @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  grantedBySub         String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@index([userId, status, startsAt, expiresAt])
+  @@index([agencyId, status, startsAt, expiresAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorSub   String
+  action     String
+  targetType String
+  targetId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorSub, createdAt])
+  @@index([targetType, targetId, createdAt])
+}
+
+enum PropertyStatusType {
+  ACTIVE
+  ARCHIVED
 }
 
 model Property {
@@ -51,10 +227,17 @@ model Property {
 
   listingPriceCents Int?
 
+  status PropertyStatusType @default(ACTIVE)
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
   openHouses OpenHouse[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([agentId, status])
 }
 
 model OpenHouse {
@@ -77,6 +260,9 @@ model OpenHouse {
   openHouseFeedbackQuestions OpenHouseFeedbackQuestion[]
 
   openHouseFeedbackSubmissions FeedbackSubmission[]
+
+  @@index([agentId, startsAt])
+  @@index([agentId, endsAt])
 }
 
 enum FeedbackQuestionType {
@@ -115,6 +301,22 @@ model FeedbackQuestion {
   feedbackAnswers FeedbackAnswer[]
 }
 
+model AgentFeedbackQuestion {
+  agentId    String
+  questionId String
+  active     Boolean @default(true)
+  required   Boolean @default(false)
+  sortOrder  Int
+
+  printable          Boolean @default(false)
+  printableSortOrder Int?
+
+  agent    Agent            @relation(fields: [agentId], references: [id])
+  question FeedbackQuestion @relation(fields: [questionId], references: [id])
+
+  @@id([agentId, questionId])
+}
+
 model FeedbackQuestionOption {
   id String @id @default(cuid())
 
@@ -126,25 +328,14 @@ model FeedbackQuestionOption {
   question   FeedbackQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 }
 
-model AgentFeedbackQuestion {
-  agentId    String
-  questionId String
-
-  required  Boolean @default(false)
-  sortOrder Int
-
-  agent    Agent            @relation(fields: [agentId], references: [id])
-  question FeedbackQuestion @relation(fields: [questionId], references: [id])
-
-  @@id([agentId, questionId])
-}
-
 model OpenHouseFeedbackQuestion {
   openHouseId String
   questionId  String
 
-  required  Boolean
-  sortOrder Int
+  required           Boolean
+  sortOrder          Int
+  printable          Boolean @default(false)
+  printableSortOrder Int?
 
   openHouse OpenHouse        @relation(fields: [openHouseId], references: [id])
   question  FeedbackQuestion @relation(fields: [questionId], references: [id])
@@ -201,7 +392,60 @@ model Lead {
 
   status LeadStatusType @default(NEW)
 
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @default(now()) @updatedAt
+  submissions FeedbackSubmission[]
+
+  @@index([agentId, status])
+  @@index([agentId, createdAt])
+}
+
+enum NoteEntityType {
+  LEAD
+  PROPERTY
+  OPEN_HOUSE
+}
+
+model Note {
+  id String @id @default(cuid())
+
+  body String
+
+  // The entity this note belongs to.
+  // Example: LEAD + dev-lead-michael-001
+  subjectType NoteEntityType
+  // The ID of the entity this note belongs to.
+  // Example: leadId of the lead this note belongs to.
+  subjectId   String
+
+  // Agent who owns the note.
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  mentions NoteMention[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agentId, subjectType, subjectId])
+}
+
+model NoteMention {
+  id String @id @default(cuid())
+
+  noteId String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  // Entity referenced with an @tag inside the note.
+  targetType NoteEntityType
+  targetId   String
+
+  // Human-readable text displayed for the tag.
+  // Example: "Jim Bean" or "1949 E Sunshine St"
+  label String
+
   createdAt DateTime @default(now())
 
-  submissions FeedbackSubmission[]
+  @@index([noteId])
+  @@index([targetType, targetId])
 }
