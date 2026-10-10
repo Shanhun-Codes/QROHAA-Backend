@@ -1,6 +1,6 @@
 // src/prisma/prisma.service.ts
 
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../generated/prisma/client';
@@ -8,7 +8,7 @@ import { readFileSync } from 'fs';
 
 @Injectable()
 export class PrismaService extends PrismaClient {
-  constructor(configService: ConfigService) {
+  constructor(@Inject(ConfigService) configService: ConfigService) {
     const nodeEnv = configService.getOrThrow<string>('NODE_ENV');
 
     const databaseHost = configService.getOrThrow<string>('DATABASE_HOST');
