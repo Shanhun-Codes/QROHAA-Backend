@@ -1,0 +1,1 @@
+{"version":3,"file":"brokerage.module.js","sourceRoot":"","sources":["../../../src/brokerage/brokerage.module.ts"],"names":[],"mappings":";;;;;;;;;AAAA,2CAAwC;AACxC,8DAA0D;AAC1D,2DAAuD;AAMhD,IAAM,eAAe,GAArB,MAAM,eAAe;CAAG,CAAA;AAAlB,0CAAe;0BAAf,eAAe;IAJ3B,IAAA,eAAM,EAAC;QACN,SAAS,EAAE,CAAC,oCAAgB,EAAE,8BAAa,CAAC;QAC5C,OAAO,EAAE,CAAC,oCAAgB,CAAC;KAC5B,CAAC;GACW,eAAe,CAAG"}

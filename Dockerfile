@@ -24,13 +24,13 @@ FROM build AS admin
 
 WORKDIR /app
 
-# Install CA certificates + wget
 RUN apk add --no-cache ca-certificates wget
 
-# Download AWS RDS CA bundle
 RUN mkdir -p /app/certs \
     && wget -O /app/certs/rds-ca-bundle.pem \
     https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+
+RUN npm run build:bootstrap
 
 CMD ["npm", "run", "bootstrap:platform-admins"]
 
