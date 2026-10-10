@@ -1,0 +1,1 @@
+{"version":3,"file":"current-cognito-sub.decorator.js","sourceRoot":"","sources":["../../../src/auth/current-cognito-sub.decorator.ts"],"names":[],"mappings":";;;AAAA,2CAAwE;AAE3D,QAAA,iBAAiB,GAAG,IAAA,6BAAoB,EACnD,CAAC,KAAc,EAAE,OAAyB,EAAU,EAAE;IACpD,MAAM,OAAO,GAAG,OAAO,CAAC,YAAY,EAAE,CAAC,UAAU,EAAE,CAAC;IACpD,OAAO,OAAO,CAAC,IAAI,CAAC,UAAU,CAAC;AACjC,CAAC,CACF,CAAC"}
