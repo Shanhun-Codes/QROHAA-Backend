@@ -26,6 +26,7 @@ export class AuthUserService {
     if (!user) {
       throw new UnauthorizedException('Authenticated user is not registered');
     }
+
     if (String(user.status) !== 'ACTIVE') {
       throw new ForbiddenException('Account is not active.');
     }
@@ -39,9 +40,11 @@ export class AuthUserService {
 
   async getAgentByCognitoSub(cognitoSub: string) {
     const user = await this.getApplicationUser(cognitoSub);
+
     if (String(user.role) !== 'AGENT' || !user.agent) {
       throw new ForbiddenException('Agent access is required.');
     }
+
     return user.agent;
   }
 
@@ -49,9 +52,11 @@ export class AuthUserService {
     const user = await this.prisma.user.findUnique({
       where: { cognitoSub },
     });
+
     if (!user) {
       throw new UnauthorizedException('Authenticated user is not registered');
     }
+
     if (
       String(user.status) !== 'ACTIVE' ||
       String(user.role) !== 'PLATFORM_ADMIN'
@@ -60,14 +65,17 @@ export class AuthUserService {
         'Platform administrator access is required.',
       );
     }
+
     return user;
   }
 
   async requireAgencyAdmin(cognitoSub: string) {
     const user = await this.getApplicationUser(cognitoSub);
+
     if (String(user.role) !== 'AGENCY_ADMIN' || !user.agencyId) {
       throw new ForbiddenException('Agency administrator access is required.');
     }
+
     return user;
   }
 
@@ -76,9 +84,11 @@ export class AuthUserService {
       where: { id: agentId, agencyId },
       select: { id: true },
     });
+
     if (!agent) {
       throw new ForbiddenException('Agent is outside this agency.');
     }
+
     return agent;
   }
 
@@ -96,23 +106,53 @@ export class AuthUserService {
       return null;
     }
 
+    const role = String(user.role);
+    const status = String(user.status);
+    const isActive = status === 'ACTIVE';
+    const isPlatformAdmin = role === 'PLATFORM_ADMIN';
+
     const accessGranted =
-      String(user.status) === 'ACTIVE' &&
-      (String(user.role) === 'PLATFORM_ADMIN' || this.hasEntitlement(user));
-    if (!accessGranted || String(user.role) !== 'AGENT' || !user.agent) {
+      isActive && (isPlatformAdmin || this.hasEntitlement(user));
+
+    if (!accessGranted) {
       return {
+        role,
+        status,
         accessGranted: false,
-        accessStatus:
-          String(user.status) !== 'ACTIVE'
-            ? String(user.status)
-            : String(user.role) !== 'AGENT'
-              ? 'ROLE_UNSUPPORTED'
-              : 'NO_ENTITLEMENT',
+        accessStatus: !isActive ? status : 'NO_ENTITLEMENT',
+        agent: null,
+      };
+    }
+
+    if (isPlatformAdmin) {
+      return {
+        role,
+        status,
+        accessGranted: true,
+        agent: user.agent
+          ? await this.agentsService.findProfile(user.agent.id)
+          : null,
+      };
+    }
+
+    if (role !== 'AGENT' || !user.agent) {
+      return {
+        role,
+        status,
+        accessGranted: false,
+        accessStatus: 'ROLE_UNSUPPORTED',
+        agent: null,
       };
     }
 
     const agent = await this.agentsService.findProfile(user.agent.id);
-    return { accessGranted: true, agent };
+
+    return {
+      role,
+      status,
+      accessGranted: true,
+      agent,
+    };
   }
 
   private hasEntitlement(user: {
@@ -132,10 +172,12 @@ export class AuthUserService {
     } | null;
   }): boolean {
     const now = new Date();
+
     const entitlements = [
       ...user.entitlements,
       ...(user.agency?.entitlements ?? []),
     ];
+
     return entitlements.some(
       (entitlement) =>
         entitlement.status === 'ACTIVE' &&

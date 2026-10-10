@@ -10,10 +10,10 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 
-import { RedeemInvitationDto } from './dto/redeem-invitation.dto';
 import { AuthUserService } from 'src/auth/auth-user.service';
 import { CognitoAuthGuard } from 'src/auth/cognito-auth.guard';
 
+import { RedeemInvitationDto } from './dto/redeem-invitation.dto';
 import { OnboardingService } from './onboarding.service';
 
 @UseGuards(CognitoAuthGuard)
@@ -37,22 +37,30 @@ export class OnboardingController {
     if (!user) {
       return {
         hasAgent: false,
+        accessGranted: false,
         invitationRequired: true,
       };
     }
 
-    if (!user.accessGranted) {
+    const isPlatformAdmin =
+      user.role === 'PLATFORM_ADMIN' && user.status === 'ACTIVE';
+
+    if (!user.accessGranted && !isPlatformAdmin) {
       return {
         hasAgent: false,
         accessGranted: false,
         accessStatus: user.accessStatus,
+        role: user.role,
+        status: user.status,
       };
     }
 
     return {
-      hasAgent: true,
+      hasAgent: Boolean(user.agent),
       accessGranted: true,
-      agent: user.agent,
+      role: user.role,
+      status: user.status,
+      agent: user.agent ?? null,
     };
   }
 
