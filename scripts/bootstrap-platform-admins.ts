@@ -17,7 +17,7 @@ async function bootstrapPlatformAdmins() {
   }
 
   const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: false,
+    logger: ['error', 'warn'],
   });
   try {
     const cognito = app.get(CognitoAuthService);
