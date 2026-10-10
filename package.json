@@ -14,7 +14,7 @@
     "prepare": "husky",
     "prisma:generate": "prisma generate",
     "admin": "tsx scripts/admin.ts",
-    "bootstrap:platform-admins": "node -r reflect-metadata -r ts-node/register scripts/bootstrap-platform-admins.ts",
+    "bootstrap:platform-admins": "node -r reflect-metadata -r tsconfig-paths/register -r ts-node/register scripts/bootstrap-platform-admins.ts",
     "prisma:reset:local": "dotenv -e .env.local -- node scripts/prisma-reset.js dev",
     "prisma:seed:local": "dotenv -e .env.local -- prisma db seed",
     "prisma:status:dev": "dotenv -e .env -- prisma migrate status",
