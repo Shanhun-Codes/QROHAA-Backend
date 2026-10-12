@@ -16,6 +16,8 @@
     "admin": "tsx scripts/admin.ts",
     "build:bootstrap": "tsc -p tsconfig.bootstrap.json",
     "bootstrap:platform-admins": "NODE_PATH=./dist-bootstrap node -r reflect-metadata dist-bootstrap/scripts/bootstrap-platform-admins.js",
+    "prebootstrap:platform-admins:local": "npm run build:bootstrap",
+    "bootstrap:platform-admins:local": "dotenv -e .env.local -- cross-env NODE_ENV=local npm run bootstrap:platform-admins",
     "prisma:reset:local": "dotenv -e .env.local -- node scripts/prisma-reset.js dev",
     "prisma:seed:local": "dotenv -e .env.local -- prisma db seed",
     "prisma:status:dev": "dotenv -e .env -- prisma migrate status",

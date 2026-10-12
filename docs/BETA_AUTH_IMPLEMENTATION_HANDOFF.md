@@ -144,6 +144,10 @@ npm run bootstrap:platform-admins
 
 The command rejects missing/duplicate subs, verifies both Cognito users and verified emails via `ListUsers` plus `AdminGetUser` before any write, and fails if a different platform admin already exists. It then upserts both identities as active `PLATFORM_ADMIN` users in one transaction. Re-running with the same identities is idempotent and does not create duplicate users. The script never accepts admin identities from a public endpoint.
 
+For localhost, put the two verified owner subs in the ignored `.env.local` file and run `npm run bootstrap:platform-admins:local` from the backend directory. This builds the bootstrap, loads `.env.local`, and selects `NODE_ENV=local`. Confirm `DATABASE_HOST=localhost` and the intended local database name before running. Local AWS credentials must allow `cognito-idp:ListUsers` and `cognito-idp:AdminGetUser` on the configured user pool. GitHub-hosted runners cannot reach your machine's localhost database.
+
+The QA GitHub workflow must be dispatched from `qa`: the deployment role trusts that branch only. A run dispatched from `dev` fails with `Not authorized to perform sts:AssumeRoleWithWebIdentity` before it reaches the bootstrap.
+
 ## 9. Existing QA Users and Data
 
 The migration assigns `PENDING` to all existing PostgreSQL Users and creates no access entitlements. Their existing Agent, Agency, Brokerage, property, lead, open-house, and feedback data is untouched. After bootstrap, a platform admin manually approves selected QA users:
