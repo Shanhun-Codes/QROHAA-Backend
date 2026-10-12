@@ -12,6 +12,12 @@ jobs:
       id-token: write
 
     steps:
+      - name: Require QA branch
+        if: github.ref != 'refs/heads/qa'
+        run: |
+          echo "::error::Run this workflow from the qa branch. The AWS deployment role trusts only qa. For localhost, run npm run bootstrap:platform-admins:local on your machine."
+          exit 1
+
       - name: Checkout
         uses: actions/checkout@v4
 
