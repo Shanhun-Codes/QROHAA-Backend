@@ -39,6 +39,7 @@ function setup() {
     tokenHash: 'stored-hash',
     role: 'AGENT',
     accountType: 'AGENT',
+    agencyId: null as string | null,
     expiresAt: new Date(Date.now() + 60_000),
     revokedAt: null,
     redeemedAt: null,
@@ -49,8 +50,14 @@ function setup() {
       findFirst: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockResolvedValue({ id: 'user-1' }),
     },
-    agent: { create: jest.fn().mockResolvedValue({ id: 'agent-1' }) },
-    agency: { create: jest.fn() },
+    agent: {
+      create: jest.fn().mockResolvedValue({ id: 'agent-1' }),
+      count: jest.fn().mockResolvedValue(0),
+    },
+    agency: {
+      create: jest.fn(),
+      update: jest.fn().mockResolvedValue({ id: 'agency-1', seatLimit: 3 }),
+    },
     auditLog: { create: jest.fn().mockResolvedValue({}) },
   };
   const prisma = {
@@ -177,5 +184,43 @@ describe('OnboardingService invitation redemption', () => {
       service.redeemInvitation(identity.sub, 'id-token', dto),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+  it('links verified agency invitees and locks inherited branding without creating a personal brokerage', async () => {
+    const { service, invitation, transaction } = setup();
+    invitation.agencyId = 'agency-1';
+    await service.redeemInvitation(identity.sub, 'id-token', {
+      invitationToken: dto.invitationToken,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      phone: dto.phone,
+      realEstateLicenseNumber: dto.realEstateLicenseNumber,
+      logoUrl: 'https://untrusted.example/logo.png',
+      primaryColor: '#000000',
+    });
+    const data = transaction.agent.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({
+      agencyId: 'agency-1',
+      brandingLocked: true,
+      logoUrl: null,
+      primaryColor: null,
+    });
+    expect(data.brokerage).toBeUndefined();
+    expect(transaction.user.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        cognitoSub: identity.sub,
+        agencyId: 'agency-1',
+        agentId: 'agent-1',
+      }),
+    });
+  });
+  it('rejects acceptance at capacity before consuming the invitation', async () => {
+    const { service, invitation, transaction } = setup();
+    invitation.agencyId = 'agency-1';
+    transaction.agent.count.mockResolvedValue(3);
+    await expect(
+      service.redeemInvitation(identity.sub, 'id-token', dto),
+    ).rejects.toThrow('seat limit');
+    expect(transaction.invitation.updateMany).not.toHaveBeenCalled();
+    expect(transaction.agent.create).not.toHaveBeenCalled();
   });
 });

@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -49,6 +50,52 @@ export class StorageService {
       key,
       uploadUrl,
     };
+  }
+
+  async createAgencyLogoUploadUrl(agencyId: string, contentType: string) {
+    const key = `agents/agencies/${agencyId}/logo/${randomUUID()}.${this.getExtension(contentType)}`;
+    const uploadUrl = await getSignedUrl(
+      this.s3,
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ContentType: contentType,
+      }),
+      { expiresIn: 300 },
+    );
+    return { key, uploadUrl };
+  }
+
+  validateAgencyLogoKey(agencyId: string, key: string): boolean {
+    const prefix = `agents/agencies/${agencyId}/logo/`;
+    return (
+      key.startsWith(prefix) &&
+      /^[a-f0-9-]{36}\.(?:jpg|png|webp)$/.test(key.slice(prefix.length))
+    );
+  }
+
+  async verifyImageUpload(key: string): Promise<void> {
+    let object;
+    try {
+      object = await this.s3.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+    } catch {
+      throw new BadRequestException(
+        'Logo upload was not found. Please upload it again.',
+      );
+    }
+    if (
+      !['image/jpeg', 'image/png', 'image/webp'].includes(
+        object.ContentType ?? '',
+      ) ||
+      !object.ContentLength ||
+      object.ContentLength > 5 * 1024 * 1024
+    ) {
+      throw new BadRequestException(
+        'Use a JPEG, PNG, or WebP image up to 5 MB.',
+      );
+    }
   }
 
   async createReadUrl(key: string): Promise<string> {

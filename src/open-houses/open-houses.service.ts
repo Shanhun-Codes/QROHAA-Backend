@@ -169,7 +169,9 @@ export class OpenHousesService {
 
         openHouseFeedbackSubmissions: {
           include: {
-            feedbackAnswers: true,
+            feedbackAnswers: {
+              include: { question: { include: { options: true } } },
+            },
             lead: true,
           },
 

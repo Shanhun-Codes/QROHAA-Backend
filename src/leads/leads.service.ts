@@ -29,15 +29,6 @@ export class LeadsService {
   }
 
   findLeadDetail(agentId: string, leadId: string) {
-    const selectedFeedbackKeys = [
-      'budget_range',
-      'pre_qualified',
-      'purchase_timeline',
-      'neighborhoods',
-      'liked_least',
-      'liked_most',
-    ];
-
     return this.prisma.lead.findUnique({
       where: { agentId: agentId, id: leadId },
       select: {
@@ -49,16 +40,27 @@ export class LeadsService {
         status: true,
         createdAt: true,
         submissions: {
+          where: { openHouse: { agentId } },
           orderBy: { createdAt: 'desc' },
           select: {
+            id: true,
             openHouseId: true,
+            openHouse: {
+              select: {
+                id: true,
+                startsAt: true,
+                endsAt: true,
+                property: true,
+              },
+            },
             createdAt: true,
             feedbackAnswers: {
-              where: { question: { key: { in: selectedFeedbackKeys } } },
               select: {
                 value: true,
                 question: {
                   select: {
+                    type: true,
+                    options: { orderBy: { sortOrder: 'asc' } },
                     key: true,
                     label: true,
                   },
@@ -107,7 +109,12 @@ export class LeadsService {
 
     return this.prisma.lead.update({
       where: { id, agentId },
-      data: updateLeadDto,
+      data: {
+        firstName: updateLeadDto.firstName,
+        lastName: updateLeadDto.lastName,
+        email: updateLeadDto.email,
+        phone: updateLeadDto.phone,
+      },
       include: this.leadRelations(),
     });
   }

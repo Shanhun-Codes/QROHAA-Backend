@@ -1,3 +1,4 @@
+import { AgencyModule } from './agency/agency.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AgentsModule } from './agents/agents.module';
@@ -38,6 +39,7 @@ import { PlatformAdminModule } from './platform-admin/platform-admin.module';
     StorageModule,
     BrokerageModule,
     PlatformAdminModule,
+    AgencyModule,
   ],
 })
 export class AppModule {}

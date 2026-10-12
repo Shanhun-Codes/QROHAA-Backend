@@ -31,6 +31,7 @@ import { PropertiesService } from 'src/properties/properties.service';
 import { CreateAgentUploadUrlDto } from 'src/storage/dto/create-agent-upload-url.dto';
 import { StorageService } from 'src/storage/storage.service';
 import { CompleteAgentUploadDto } from 'src/storage/dto/complete-agent-upload.dto';
+import { UpdateLeadDto } from 'src/leads/dto/update-lead.dto';
 import { UpdatePropertiesDto } from 'src/properties/dto/update-properties.dto';
 
 @UseGuards(AgentAuthGuard)
@@ -117,6 +118,15 @@ export class AgentAppController {
     );
   }
 
+  @Patch('leads/:leadId')
+  updateLead(
+    @CurrentAgentId() agentId: string,
+    @Param('leadId') leadId: string,
+    @Body() dto: UpdateLeadDto,
+  ) {
+    return this.leadsService.update(agentId, leadId, dto);
+  }
+
   // ======================================================
   // LEAD NOTES
   // ======================================================
@@ -164,6 +174,14 @@ export class AgentAppController {
   @Get('properties')
   getAllAgentProperties(@CurrentAgentId() agentId: string) {
     return this.propertyService.findAllAgentProperties(agentId);
+  }
+
+  @Get('properties/:propertyId')
+  getPropertyDetail(
+    @CurrentAgentId() agentId: string,
+    @Param('propertyId') propertyId: string,
+  ) {
+    return this.propertyService.findAgentPropertyDetail(agentId, propertyId);
   }
 
   @Post('properties')
