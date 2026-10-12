@@ -61,7 +61,22 @@ export class OnboardingController {
       role: user.role,
       status: user.status,
       agent: user.agent ?? null,
+      agencyId: user.agencyId ?? null,
     };
+  }
+
+  @Post('agency-invitation')
+  inspectAgencyInvitation(
+    @Req() request: Request,
+    @Headers('x-cognito-id-token') idToken: string | undefined,
+    @Body() dto: RedeemInvitationDto,
+  ) {
+    if (!idToken) throw new UnauthorizedException('Missing Cognito ID token');
+    return this.onboardingService.inspectAgencyInvitation(
+      request['user'].cognitoSub,
+      idToken,
+      dto.invitationToken,
+    );
   }
 
   @Post('agent')

@@ -11,9 +11,9 @@ export class CreateBrokerageDto {
   @IsNotEmpty()
   name!: string;
 
-  @IsOptional()
   @IsString()
-  licenseNumber?: string;
+  @IsNotEmpty()
+  licenseNumber!: string;
 
   @IsOptional()
   @IsString()

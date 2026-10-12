@@ -44,7 +44,10 @@ export class AuthUserService {
     const isAgent = String(user.role) === 'AGENT';
     const isPlatformAdmin = String(user.role) === 'PLATFORM_ADMIN';
 
-    if ((!isAgent && !isPlatformAdmin) || !user.agent) {
+    if (
+      (!isAgent && !isPlatformAdmin && String(user.role) !== 'AGENCY_ADMIN') ||
+      !user.agent
+    ) {
       throw new ForbiddenException('Agent access is required.');
     }
 
@@ -121,6 +124,7 @@ export class AuthUserService {
       return {
         role,
         status,
+        agencyId: user.agencyId,
         accessGranted: false,
         accessStatus: !isActive ? status : 'NO_ENTITLEMENT',
         agent: null,
@@ -131,7 +135,20 @@ export class AuthUserService {
       return {
         role,
         status,
+        agencyId: user.agencyId,
         accessGranted: true,
+        agent: user.agent
+          ? await this.agentsService.findProfile(user.agent.id)
+          : null,
+      };
+    }
+
+    if (role === 'AGENCY_ADMIN' && user.agencyId) {
+      return {
+        role,
+        status,
+        accessGranted: true,
+        agencyId: user.agencyId,
         agent: user.agent
           ? await this.agentsService.findProfile(user.agent.id)
           : null,
@@ -142,6 +159,7 @@ export class AuthUserService {
       return {
         role,
         status,
+        agencyId: user.agencyId,
         accessGranted: false,
         accessStatus: 'ROLE_UNSUPPORTED',
         agent: null,

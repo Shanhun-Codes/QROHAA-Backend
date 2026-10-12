@@ -17,6 +17,54 @@ export class OnboardingService {
     private readonly cognitoAuthService: CognitoAuthService,
   ) {}
 
+  async inspectAgencyInvitation(
+    cognitoSub: string,
+    idToken: string,
+    token: string,
+  ) {
+    const identity = await this.cognitoAuthService.verifyInvitationIdentity(
+      idToken,
+      cognitoSub,
+    );
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { tokenHash: this.hashInvitationToken(token) },
+      include: { agency: { include: { brokerage: true } } },
+    });
+    if (
+      !invitation?.agency ||
+      invitation.revokedAt ||
+      invitation.redeemedAt ||
+      invitation.expiresAt <= new Date()
+    ) {
+      throw new BadRequestException(
+        'This invitation has expired, was revoked, or has already been accepted. Ask your agency for a new invitation.',
+      );
+    }
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { cognitoSub: identity.sub },
+          { email: { equals: identity.email, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true },
+    });
+    return {
+      email: invitation.email,
+      signedInEmail: identity.email,
+      emailMatches:
+        this.cognitoAuthService.normalizeEmail(invitation.email) ===
+        identity.email,
+      existingAccount: Boolean(existing),
+      role: invitation.role,
+      expiresAt: invitation.expiresAt,
+      agency: {
+        name: invitation.agency.name,
+        brokerage: invitation.agency.brokerage,
+      },
+    };
+  }
+
   async redeemInvitation(
     cognitoSub: string,
     idToken: string,
@@ -44,7 +92,7 @@ export class OnboardingService {
     }
 
     if (invitation.accountType === 'AGENT') {
-      this.validateAgentDetails(dto);
+      this.validateAgentDetails(dto, Boolean(invitation.agencyId));
     } else if (!dto.agency?.name?.trim()) {
       throw new BadRequestException('Agency name is required.');
     }
@@ -59,12 +107,27 @@ export class OnboardingService {
         : [];
 
     const provisioned = await this.prisma.$transaction(async (transaction) => {
+      if (invitation.agencyId) {
+        const agency = await transaction.agency.update({
+          where: { id: invitation.agencyId },
+          data: { updatedAt: new Date() },
+        });
+        const occupied = await transaction.agent.count({
+          where: { agencyId: agency.id },
+        });
+        if (agency.seatLimit !== null && occupied >= agency.seatLimit) {
+          throw new BadRequestException(
+            'This agency has reached its agent seat limit. Contact your agency administrator.',
+          );
+        }
+      }
       const claimed = await transaction.invitation.updateMany({
         where: {
           id: invitation.id,
+          tokenHash,
           revokedAt: null,
           redeemedAt: null,
-          expiresAt: { gt: now },
+          expiresAt: { gt: new Date() },
         },
         data: {
           redeemedAt: now,
@@ -79,7 +142,10 @@ export class OnboardingService {
       if (
         await transaction.user.findFirst({
           where: {
-            OR: [{ cognitoSub: identity.sub }, { email: identity.email }],
+            OR: [
+              { cognitoSub: identity.sub },
+              { email: { equals: identity.email, mode: 'insensitive' } },
+            ],
           },
           select: { id: true },
         })
@@ -88,7 +154,7 @@ export class OnboardingService {
       }
 
       let agentId: string | undefined;
-      let agencyId: string | undefined;
+      let agencyId: string | undefined = invitation.agencyId ?? undefined;
 
       if (invitation.accountType === 'AGENT') {
         const slug = await this.agentsService.generateUniqueSlug(
@@ -104,31 +170,38 @@ export class OnboardingService {
             phone: dto.phone!.trim(),
             realEstateLicenseNumber: dto.realEstateLicenseNumber!.trim(),
             headline: dto.headline?.trim() || null,
-            logoUrl: dto.logoUrl?.trim() || null,
+            ...(agencyId && { agencyId, brandingLocked: true }),
+            logoUrl: agencyId ? null : dto.logoUrl?.trim() || null,
             headshotUrl: dto.headshotUrl?.trim() || null,
-            primaryColor: this.normalizeColor(dto.primaryColor),
-            secondaryColor: this.normalizeColor(dto.secondaryColor),
-            accentColor: this.normalizeColor(dto.accentColor),
+            primaryColor: agencyId
+              ? null
+              : this.normalizeColor(dto.primaryColor),
+            secondaryColor: agencyId
+              ? null
+              : this.normalizeColor(dto.secondaryColor),
+            accentColor: agencyId ? null : this.normalizeColor(dto.accentColor),
             agentFeedbackQuestions: {
               create: defaultQuestions.map((question, sortOrder) => ({
                 questionId: question.id,
                 sortOrder,
               })),
             },
-            brokerage: {
-              create: {
-                name: dto.brokerage!.name.trim(),
-                licenseNumber: dto.brokerage!.licenseNumber.trim(),
-                phone: dto.brokerage!.phone?.trim() || null,
-                email: dto.brokerage!.email?.trim().toLowerCase() || null,
-                websiteUrl: dto.brokerage!.websiteUrl?.trim() || null,
-                street: dto.brokerage!.address.street.trim(),
-                street2: dto.brokerage!.address.street2?.trim() || null,
-                city: dto.brokerage!.address.city.trim(),
-                state: dto.brokerage!.address.state.trim(),
-                zip: dto.brokerage!.address.zip.trim(),
+            ...(!agencyId && {
+              brokerage: {
+                create: {
+                  name: dto.brokerage!.name.trim(),
+                  licenseNumber: dto.brokerage!.licenseNumber.trim(),
+                  phone: dto.brokerage!.phone?.trim() || null,
+                  email: dto.brokerage!.email?.trim().toLowerCase() || null,
+                  websiteUrl: dto.brokerage!.websiteUrl?.trim() || null,
+                  street: dto.brokerage!.address.street.trim(),
+                  street2: dto.brokerage!.address.street2?.trim() || null,
+                  city: dto.brokerage!.address.city.trim(),
+                  state: dto.brokerage!.address.state.trim(),
+                  zip: dto.brokerage!.address.zip.trim(),
+                },
               },
-            },
+            }),
           },
           select: { id: true },
         });
@@ -187,18 +260,25 @@ export class OnboardingService {
     };
   }
 
-  private validateAgentDetails(dto: RedeemInvitationDto): void {
+  private validateAgentDetails(
+    dto: RedeemInvitationDto,
+    agencyOwned = false,
+  ): void {
     const requiredValues = [
       dto.firstName,
       dto.lastName,
       dto.phone,
       dto.realEstateLicenseNumber,
-      dto.brokerage?.name,
-      dto.brokerage?.licenseNumber,
-      dto.brokerage?.address?.street,
-      dto.brokerage?.address?.city,
-      dto.brokerage?.address?.state,
-      dto.brokerage?.address?.zip,
+      ...(!agencyOwned
+        ? [
+            dto.brokerage?.name,
+            dto.brokerage?.licenseNumber,
+            dto.brokerage?.address?.street,
+            dto.brokerage?.address?.city,
+            dto.brokerage?.address?.state,
+            dto.brokerage?.address?.zip,
+          ]
+        : []),
     ];
     if (requiredValues.some((value) => !value?.trim())) {
       throw new BadRequestException(

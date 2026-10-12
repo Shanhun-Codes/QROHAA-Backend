@@ -86,7 +86,6 @@ export class AgentsService {
       where: { id },
       omit: {
         brokerageName: true,
-        agencyId: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -184,6 +183,24 @@ export class AgentsService {
 
   async update(id: string, updateAgentDto: UpdateAgentDto) {
     await this.ensureAgentExists(id);
+    const owner = await this.prisma.agent.findUnique({
+      where: { id },
+      select: { agencyId: true, brandingLocked: true },
+    });
+    if (
+      (owner?.agencyId || owner?.brandingLocked) &&
+      [
+        'logoUrl',
+        'primaryColor',
+        'secondaryColor',
+        'accentColor',
+        'brokerage',
+      ].some((key) => updateAgentDto[key] !== undefined)
+    ) {
+      throw new ForbiddenException(
+        'Branding and brokerage are managed by your agency.',
+      );
+    }
     const {
       primaryColor,
       secondaryColor,
@@ -226,15 +243,24 @@ export class AgentsService {
   ) {
     const agent = await this.prisma.agent.findUnique({
       where: { id: agentId },
-      select: { brandingLocked: true, brokerage: { select: { id: true } } },
+      select: {
+        brandingLocked: true,
+        brokerage: { select: { id: true, licenseNumber: true } },
+      },
     });
 
     if (agent?.brandingLocked) {
       throw new ForbiddenException('Brokerage is managed by your agency.');
     }
 
+    const licenseNumber =
+      brokerage.licenseNumber !== undefined
+        ? brokerage.licenseNumber?.trim()
+        : agent?.brokerage?.licenseNumber?.trim();
+    if (!licenseNumber)
+      throw new BadRequestException('Brokerage license number is required.');
     const { address, ...fields } = brokerage;
-    const data = { ...fields, ...address };
+    const data = { ...fields, ...address, licenseNumber };
 
     if (agent?.brokerage) {
       return { update: data };
@@ -303,6 +329,8 @@ export class AgentsService {
       throw new NotFoundException('Agent not found.');
     }
 
+    if (type === 'logo' && (agent.brandingLocked || agent.agencyId))
+      throw new ForbiddenException('Logo is managed by your agency.');
     const previousKey = type === 'headshot' ? agent.headshotUrl : agent.logoUrl;
 
     await this.prisma.agent.update({
@@ -323,10 +351,44 @@ export class AgentsService {
     T extends {
       logoUrl: string | null;
       headshotUrl: string | null;
+      agencyId?: string | null;
     },
   >(agent: T): Promise<T> {
+    const agency = agent.agencyId
+      ? await this.prisma.agency.findUnique({
+          where: { id: agent.agencyId },
+          select: {
+            logoUrl: true,
+            primaryColor: true,
+            secondaryColor: true,
+            accentColor: true,
+            brokerage: {
+              select: {
+                id: true,
+                name: true,
+                licenseNumber: true,
+                phone: true,
+                email: true,
+                websiteUrl: true,
+                street: true,
+                street2: true,
+                city: true,
+                state: true,
+                zip: true,
+              },
+            },
+          },
+        })
+      : null;
+    const effective = agency
+      ? { ...agent, ...agency, brandingLocked: true }
+      : agent;
     const [logoUrl, headshotUrl] = await Promise.all([
-      agent.logoUrl ? this.storageService.createReadUrl(agent.logoUrl) : null,
+      effective.logoUrl
+        ? /^https?:\/\//.test(effective.logoUrl)
+          ? effective.logoUrl
+          : this.storageService.createReadUrl(effective.logoUrl)
+        : null,
 
       agent.headshotUrl
         ? this.storageService.createReadUrl(agent.headshotUrl)
@@ -334,7 +396,7 @@ export class AgentsService {
     ]);
 
     return {
-      ...agent,
+      ...effective,
       logoUrl,
       headshotUrl,
     };

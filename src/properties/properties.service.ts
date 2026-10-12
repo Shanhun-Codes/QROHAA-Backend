@@ -26,6 +26,29 @@ export class PropertiesService {
     });
   }
 
+  async findAgentPropertyDetail(agentId: string, propertyId: string) {
+    return this.prisma.property.findFirst({
+      where: { id: propertyId, agentId },
+      include: {
+        openHouses: {
+          where: { agentId },
+          orderBy: { startsAt: 'desc' },
+          include: {
+            openHouseFeedbackSubmissions: {
+              orderBy: { createdAt: 'desc' },
+              include: {
+                lead: true,
+                feedbackAnswers: {
+                  include: { question: { include: { options: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   findAll() {
     return this.prisma.property.findMany({
       orderBy: { createdAt: 'desc' },

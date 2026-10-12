@@ -11,8 +11,16 @@
   },
   "include": [
     "scripts/bootstrap-platform-admins.ts",
+    "scripts/setup-test-agency.ts",
+    "scripts/verify-agency-seats.ts",
     "src/**/*.ts",
     "generated/prisma/**/*.ts"
   ],
-  "exclude": ["node_modules", "dist", "dist-bootstrap", "test", "**/*.spec.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dist-bootstrap",
+    "test",
+    "**/*.spec.ts"
+  ]
 }

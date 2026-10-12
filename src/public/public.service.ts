@@ -33,10 +33,11 @@ export class PublicService {
     private readonly agentService: AgentsService,
   ) {}
 
-  findPublicAgentBySlug(slug: string) {
-    return this.prisma.agent.findUnique({
+  async findPublicAgentBySlug(slug: string) {
+    const agent = await this.prisma.agent.findUnique({
       where: { slug },
       select: {
+        agencyId: true,
         slug: true,
         firstName: true,
         lastName: true,
@@ -48,6 +49,7 @@ export class PublicService {
         headshotUrl: true,
       },
     });
+    return agent ? this.agentService.withAssetUrls(agent) : null;
   }
 
   findOpenHouseByPublicCode(publicCode: string) {
@@ -60,6 +62,7 @@ export class PublicService {
     const agentData = await this.prisma.agent.findUnique({
       where: { slug },
       select: {
+        agencyId: true,
         slug: true,
         firstName: true,
         lastName: true,
