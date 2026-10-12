@@ -2,9 +2,8 @@ import { createServer } from 'node:http';
 import { createHash, randomBytes } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { createInterface } from 'node:readline/promises';
-import { stdin, stdout } from 'node:process';
-import { checkbox, select } from '@inquirer/prompts';
+import { stdout } from 'node:process';
+import { confirm as confirmPrompt, input, select } from '@inquirer/prompts';
 
 const execFileAsync = promisify(execFile);
 const callbackUri = process.env.COGNITO_CLI_REDIRECT_URI;
@@ -27,7 +26,7 @@ const environments = {
 } as const;
 
 type EnvironmentName = keyof typeof environments;
-type AdminApi = (path: string, init?: RequestInit) => Promise<any>;
+type AdminApi = (path: string, init?: RequestInit) => Promise<unknown>;
 
 function requiredCallback(): URL {
   if (!callbackUri) {
@@ -163,40 +162,30 @@ async function askChoice(title: string, options: string[]): Promise<number> {
   });
 }
 
-async function askMultiChoice(
-  title: string,
-  options: string[],
-): Promise<number[]> {
-  return checkbox({
-    message: title,
-    instructions: 'Use arrow keys to move, Space to toggle, Enter to confirm.',
-    choices: options.map((name, value) => ({ name, value })),
-  });
-}
-
-async function confirm(
-  rl: ReturnType<typeof createInterface>,
-  prompt: string,
-): Promise<boolean> {
-  return (await rl.question(`${prompt} [y/N] `)).trim().toLowerCase() === 'y';
-}
-
 async function confirmMutation(
-  rl: ReturnType<typeof createInterface>,
   environment: EnvironmentName,
   summary: string,
 ): Promise<boolean> {
   stdout.write(`\nTarget: ${environment.toUpperCase()}\n${summary}\n`);
   if (
     environment === 'production' &&
-    !(await confirm(rl, 'This will change PRODUCTION. Continue'))
+    !(await confirmPrompt({
+      message: 'This will change PRODUCTION. Continue?',
+      default: false,
+    }))
   ) {
+    stdout.write('Cancelled. No changes were made.\n');
     return false;
   }
-  return confirm(rl, 'Confirm mutation');
+  const confirmed = await confirmPrompt({
+    message: 'Confirm mutation?',
+    default: false,
+  });
+  if (!confirmed) stdout.write('Cancelled. No changes were made.\n');
+  return confirmed;
 }
 
-function makeApi(baseUrl: string, accessToken: string): AdminApi {
+export function makeApi(baseUrl: string, accessToken: string): AdminApi {
   return async (path, init = {}) => {
     const response = await fetch(new URL(`/platform-admin${path}`, baseUrl), {
       ...init,
@@ -207,30 +196,42 @@ function makeApi(baseUrl: string, accessToken: string): AdminApi {
       },
     });
     const body = await response.text();
-    const result = body ? JSON.parse(body) : null;
+    let result: unknown = null;
+    try {
+      result = body ? JSON.parse(body) : null;
+    } catch {
+      throw new Error(
+        `HTTP ${response.status}: API returned an unexpected non-JSON response.`,
+      );
+    }
     if (!response.ok) {
-      const detail =
-        typeof result?.message === 'string'
+      const message: unknown =
+        result && typeof result === 'object' && 'message' in result
           ? result.message
-          : `HTTP ${response.status}`;
+          : undefined;
+      const detail =
+        typeof message === 'string'
+          ? message
+          : Array.isArray(message)
+            ? message.join('; ')
+            : `HTTP ${response.status}`;
       throw new Error(detail);
     }
     return result;
   };
 }
 
-async function promptCreateInvitation(
-  rl: ReturnType<typeof createInterface>,
+export async function promptCreateInvitation(
   api: AdminApi,
   environment: EnvironmentName,
 ) {
-  const email = (await rl.question('Invited email: ')).trim();
+  const email = (await input({ message: 'Invited email: ' })).trim();
   const accountTypeIndex = await askChoice('Account type', [
     'Agent',
     'Agency administrator',
   ]);
   const expiresInput = (
-    await rl.question('Expires in hours (default 72): ')
+    await input({ message: 'Expires in hours (default 72): ' })
   ).trim();
   const expiresInHours = expiresInput ? Number(expiresInput) : 72;
   if (
@@ -244,16 +245,15 @@ async function promptCreateInvitation(
   const accountType = accountTypeIndex === 0 ? 'AGENT' : 'AGENCY';
   if (
     !(await confirmMutation(
-      rl,
       environment,
       `Create ${accountType} invitation for ${email}, expiring in ${expiresInHours} hours.`,
     ))
   )
     return;
-  const invitation = await api('/invitations', {
+  const invitation = (await api('/invitations', {
     method: 'POST',
     body: JSON.stringify({ email, accountType, expiresInHours }),
-  });
+  })) as { token: string };
   stdout.write(
     `\nInvitation created. Share this link securely; the token is shown only once:\n${portalInviteUrl(invitation.token, environment)}\n`,
   );
@@ -271,10 +271,7 @@ function portalInviteUrl(token: string, environment: EnvironmentName): string {
   return `${base.replace(/\/$/, '')}/setup-agent#invite=${encodeURIComponent(token)}`;
 }
 
-async function selectUser(
-  rl: ReturnType<typeof createInterface>,
-  api: AdminApi,
-) {
+async function selectUser(api: AdminApi) {
   const users = (await api('/users')) as Array<{
     id: string;
     email: string;
@@ -296,25 +293,27 @@ async function selectUser(
   return users[selected];
 }
 
-async function promptApproval(
-  rl: ReturnType<typeof createInterface>,
+export async function promptApproval(
   api: AdminApi,
   environment: EnvironmentName,
 ) {
-  const user = await selectUser(rl, api);
+  const user = await selectUser(api);
   const accessType = await askChoice('Access type', ['BETA', 'PAID']);
   const expiry = (
-    await rl.question('Access expiry ISO date (blank = no expiry): ')
+    await input({ message: 'Access expiry ISO date (blank = no expiry): ' })
   ).trim();
   if (expiry && Number.isNaN(Date.parse(expiry)))
     throw new Error('Enter a valid ISO date.');
+  if (expiry && Date.parse(expiry) <= Date.now())
+    throw new Error(
+      'Access expiry must be in the future. No changes were made.',
+    );
   const body = {
     type: accessType === 0 ? 'BETA' : 'PAID',
     ...(expiry && { expiresAt: new Date(expiry).toISOString() }),
   };
   if (
     !(await confirmMutation(
-      rl,
       environment,
       `Activate ${user.email} and grant ${body.type} access${expiry ? ` through ${expiry}` : ' with no expiry'}.`,
     ))
@@ -328,19 +327,33 @@ async function promptApproval(
     method: 'POST',
     body: JSON.stringify(body),
   });
-  stdout.write(`Activated and granted ${body.type} access to ${user.email}.\n`);
+  const savedUsers = (await api('/users')) as Array<{
+    id: string;
+    status: string;
+    entitlements: Array<{ type: string; status: string }>;
+  }>;
+  const saved = savedUsers.find((item) => item.id === user.id);
+  if (
+    saved?.status !== 'ACTIVE' ||
+    !saved.entitlements?.some(
+      (item) => item.type === body.type && item.status === 'ACTIVE',
+    )
+  ) {
+    throw new Error(
+      'Activation could not be verified. Check the user status and entitlements before retrying.',
+    );
+  }
+  stdout.write(`Verified: ${user.email} is ACTIVE with ${body.type} access.\n`);
 }
 
-async function promptStatus(
-  rl: ReturnType<typeof createInterface>,
+export async function promptStatus(
   api: AdminApi,
   environment: EnvironmentName,
   status: 'ACTIVE' | 'SUSPENDED',
 ) {
-  const user = await selectUser(rl, api);
+  const user = await selectUser(api);
   if (
     !(await confirmMutation(
-      rl,
       environment,
       `Set ${user.email} account status to ${status}.`,
     ))
@@ -353,20 +366,19 @@ async function promptStatus(
   stdout.write(`${user.email} is now ${status}.\n`);
 }
 
-async function promptGrantAccess(
-  rl: ReturnType<typeof createInterface>,
+export async function promptGrantAccess(
   api: AdminApi,
   environment: EnvironmentName,
 ) {
   const targetKind = await askChoice('Grant access to', ['User', 'Agency']);
   if (targetKind === 0) {
-    const user = await selectUser(rl, api);
+    const user = await selectUser(api);
     const type =
       (await askChoice('Access type', ['BETA', 'PAID'])) === 0
         ? 'BETA'
         : 'PAID';
     const expiresAt = (
-      await rl.question('Access expiry ISO date (blank = no expiry): ')
+      await input({ message: 'Access expiry ISO date (blank = no expiry): ' })
     ).trim();
     if (expiresAt && Number.isNaN(Date.parse(expiresAt)))
       throw new Error('Enter a valid ISO date.');
@@ -376,7 +388,6 @@ async function promptGrantAccess(
     };
     if (
       !(await confirmMutation(
-        rl,
         environment,
         `Grant ${type} access to ${user.email}${expiresAt ? ` until ${expiresAt}` : ' without expiry'}.`,
       ))
@@ -403,7 +414,7 @@ async function promptGrantAccess(
   const type =
     (await askChoice('Access type', ['BETA', 'PAID'])) === 0 ? 'BETA' : 'PAID';
   const expiresAt = (
-    await rl.question('Access expiry ISO date (blank = no expiry): ')
+    await input({ message: 'Access expiry ISO date (blank = no expiry): ' })
   ).trim();
   if (expiresAt && Number.isNaN(Date.parse(expiresAt)))
     throw new Error('Enter a valid ISO date.');
@@ -413,7 +424,6 @@ async function promptGrantAccess(
   };
   if (
     !(await confirmMutation(
-      rl,
       environment,
       `Grant ${type} access to agency ${agency.name}${expiresAt ? ` until ${expiresAt}` : ' without expiry'}.`,
     ))
@@ -426,8 +436,7 @@ async function promptGrantAccess(
   stdout.write(`Granted ${type} access to agency ${agency.name}.\n`);
 }
 
-async function promptRevokeAccess(
-  rl: ReturnType<typeof createInterface>,
+export async function promptRevokeAccess(
   api: AdminApi,
   environment: EnvironmentName,
 ) {
@@ -476,7 +485,6 @@ async function promptRevokeAccess(
   const entitlement = entries[index];
   if (
     !(await confirmMutation(
-      rl,
       environment,
       `Revoke ${entitlement.type} access for ${entitlement.owner}.`,
     ))
@@ -498,8 +506,7 @@ async function listInvitations(api: AdminApi) {
   else stdout.write(`${JSON.stringify(invitations, null, 2)}\n`);
 }
 
-async function promptRevokeInvitation(
-  rl: ReturnType<typeof createInterface>,
+export async function promptRevokeInvitation(
   api: AdminApi,
   environment: EnvironmentName,
 ) {
@@ -528,7 +535,6 @@ async function promptRevokeInvitation(
   const invite = openInvitations[index];
   if (
     !(await confirmMutation(
-      rl,
       environment,
       `Revoke invitation ${invite.id} for ${invite.email}.`,
     ))
@@ -541,7 +547,6 @@ async function promptRevokeInvitation(
 }
 
 async function main() {
-  const rl = createInterface({ input: stdin, output: stdout });
   let accessToken: string | undefined;
   try {
     const envIndex = await askChoice('Choose API environment', [
@@ -569,7 +574,7 @@ async function main() {
       'Revoke invitation',
       'List users',
       'Approve existing user and grant beta/paid access',
-      'Grant beta/paid access',
+      'Grant additional beta/paid access (account status unchanged)',
       'Revoke user access',
       'Suspend account',
       'Reactivate account',
@@ -589,13 +594,13 @@ async function main() {
       try {
         switch (action) {
           case 0:
-            await promptCreateInvitation(rl, activeApi, activeEnvironment);
+            await promptCreateInvitation(activeApi, activeEnvironment);
             break;
           case 1:
             await listInvitations(activeApi);
             break;
           case 2:
-            await promptRevokeInvitation(rl, activeApi, activeEnvironment);
+            await promptRevokeInvitation(activeApi, activeEnvironment);
             break;
           case 3:
             stdout.write(
@@ -603,19 +608,19 @@ async function main() {
             );
             break;
           case 4:
-            await promptApproval(rl, activeApi, activeEnvironment);
+            await promptApproval(activeApi, activeEnvironment);
             break;
           case 5:
-            await promptGrantAccess(rl, activeApi, activeEnvironment);
+            await promptGrantAccess(activeApi, activeEnvironment);
             break;
           case 6:
-            await promptRevokeAccess(rl, activeApi, activeEnvironment);
+            await promptRevokeAccess(activeApi, activeEnvironment);
             break;
           case 7:
-            await promptStatus(rl, activeApi, activeEnvironment, 'SUSPENDED');
+            await promptStatus(activeApi, activeEnvironment, 'SUSPENDED');
             break;
           case 8:
-            await promptStatus(rl, activeApi, activeEnvironment, 'ACTIVE');
+            await promptStatus(activeApi, activeEnvironment, 'ACTIVE');
             break;
           case 9:
             stdout.write(
@@ -657,13 +662,13 @@ async function main() {
     }
   } finally {
     accessToken = undefined;
-    rl.close();
   }
 }
 
-main().catch((error: unknown) => {
-  stdout.write(
-    `Admin CLI could not start: ${error instanceof Error ? error.message : 'Unknown error'}\n`,
-  );
-  process.exitCode = 1;
-});
+if (require.main === module)
+  main().catch((error: unknown) => {
+    stdout.write(
+      `Admin CLI could not start: ${error instanceof Error ? error.message : 'Unknown error'}\n`,
+    );
+    process.exitCode = 1;
+  });
