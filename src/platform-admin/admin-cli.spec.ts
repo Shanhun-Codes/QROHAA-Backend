@@ -5,6 +5,7 @@ jest.mock('@inquirer/prompts', () => ({
 }));
 import { select, input, confirm } from '@inquirer/prompts';
 import {
+  promptUserRole,
   promptApproval,
   promptStatus,
   promptGrantAccess,
@@ -36,6 +37,37 @@ describe('admin CLI mutations', () => {
     output = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
   });
   afterEach(() => jest.restoreAllMocks());
+  it('promotes an existing user and creates an agency through the API', async () => {
+    api
+      .mockResolvedValueOnce([user])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ role: 'AGENCY_ADMIN', agencyId: 'agency-new' });
+    choose
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(1);
+    answer.mockResolvedValueOnce('Example Realty');
+    await promptUserRole(api, 'qa');
+    expect(api).toHaveBeenLastCalledWith('/users/user-1/role', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        role: 'AGENCY_ADMIN',
+        agencyName: 'Example Realty',
+      }),
+    });
+  });
+  it('does not change a role when confirmation is declined', async () => {
+    api
+      .mockResolvedValueOnce([user])
+      .mockResolvedValueOnce([{ id: 'agency1', name: 'Example' }]);
+    choose
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(2);
+    accept.mockResolvedValueOnce(false);
+    await promptUserRole(api, 'qa');
+    expect(api).toHaveBeenCalledTimes(2);
+  });
   it('completes approval after selection, blank expiry and confirmation, then reads saved state', async () => {
     api
       .mockResolvedValueOnce([user])
