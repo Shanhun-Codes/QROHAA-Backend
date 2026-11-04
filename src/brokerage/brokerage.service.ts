@@ -79,7 +79,7 @@ export class BrokerageService {
     }
 
     if (agent.brandingLocked) {
-      throw new ForbiddenException('Brokerage is managed by your agency');
+      throw new ForbiddenException('Brokerage is managed by your brokerage');
     }
   }
 }

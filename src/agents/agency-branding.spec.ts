@@ -17,7 +17,7 @@ function setup() {
     primaryColor: '#123456',
     secondaryColor: '#ffffff',
     accentColor: '#654321',
-    brokerage: { name: 'Agency Brokerage' },
+    brokerage: { name: 'Brokerage Brokerage' },
   };
   const prisma = {
     agent: {
@@ -39,14 +39,14 @@ function setup() {
     storage,
   };
 }
-describe('Agency-owned agent branding', () => {
+describe('Brokerage-owned agent branding', () => {
   it('resolves agency logo/colors/brokerage at read time and retains the agent headshot', async () => {
     const { service, profile, agency, prisma } = setup();
     expect(await service.withAssetUrls(profile)).toMatchObject({
       logoUrl: 'signed:agency-logo',
       primaryColor: '#123456',
       headshotUrl: 'signed:personal-headshot',
-      brokerage: { name: 'Agency Brokerage' },
+      brokerage: { name: 'Brokerage Brokerage' },
       brandingLocked: true,
     });
     agency.primaryColor = '#999999';
@@ -62,7 +62,7 @@ describe('Agency-owned agent branding', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.agent.update).not.toHaveBeenCalled();
   });
-  it('rejects replacing an agency logo through the asset completion endpoint', async () => {
+  it('rejects replacing a brokerage logo through the asset completion endpoint', async () => {
     const { service, prisma } = setup();
     await expect(
       service.completeAssetUpload(

@@ -105,7 +105,7 @@ describe('AuthUserService access decisions', () => {
     );
   });
 
-  it('accepts an agency-level entitlement for an agency administrator', async () => {
+  it('accepts a brokerage-level entitlement for a brokerage administrator', async () => {
     const { service } = createService({
       id: 'agency-user',
       agencyId: 'agency-1',
@@ -123,7 +123,7 @@ describe('AuthUserService access decisions', () => {
     });
   });
 
-  it('denies an agent outside the specified agency', async () => {
+  it('denies an agent outside the specified brokerage', async () => {
     const { service, prisma } = createService(null);
 
     await expect(

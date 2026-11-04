@@ -59,7 +59,7 @@ export class OnboardingService {
       invitation.expiresAt <= new Date()
     ) {
       throw new BadRequestException(
-        'This invitation has expired, was revoked, or has already been accepted. Ask your agency for a new invitation.',
+        'This invitation has expired, was revoked, or has already been accepted. Ask your brokerage for a new invitation.',
       );
     }
     const existing = await this.prisma.user.findFirst({
@@ -116,7 +116,7 @@ export class OnboardingService {
     if (invitation.accountType === 'AGENT') {
       this.validateAgentDetails(dto, Boolean(invitation.agencyId));
     } else if (!dto.agency?.name?.trim()) {
-      throw new BadRequestException('Agency name is required.');
+      throw new BadRequestException('Brokerage name is required.');
     }
 
     const defaultQuestions =
@@ -139,7 +139,7 @@ export class OnboardingService {
         });
         if (agency.seatLimit !== null && occupied >= agency.seatLimit) {
           throw new BadRequestException(
-            'This agency has reached its agent seat limit. Contact your agency administrator.',
+            'This brokerage has reached its agent seat limit. Contact your brokerage administrator.',
           );
         }
       }

@@ -51,7 +51,7 @@ export class AgencySettingsService {
   async update(sub: string, agencyId: string, dto: UpdateAgencySettingsDto) {
     await this.agencies.authorize(sub, agencyId);
     if (dto.name !== undefined && !dto.name?.trim())
-      throw new BadRequestException('Agency name is required.');
+      throw new BadRequestException('Brokerage name is required.');
     await this.prisma.$transaction(async (tx) => {
       const data: {
         name?: string;
@@ -136,7 +136,7 @@ export class AgencySettingsService {
   async completeLogo(sub: string, agencyId: string, key: string) {
     await this.agencies.authorize(sub, agencyId);
     if (!this.storage.validateAgencyLogoKey(agencyId, key))
-      throw new BadRequestException('Logo does not belong to this agency.');
+      throw new BadRequestException('Logo does not belong to this brokerage.');
     await this.storage.verifyImageUpload(key);
     await this.prisma.$transaction(async (tx) => {
       await tx.agency.update({

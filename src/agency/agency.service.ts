@@ -25,13 +25,13 @@ export class AgencyService {
       (user.role !== 'AGENCY_ADMIN' || user.agencyId !== agencyId)
     ) {
       throw new ForbiddenException(
-        'Agency administrator access is required for this agency.',
+        'Brokerage administrator access is required for this brokerage.',
       );
     }
     const agency = await this.prisma.agency.findUnique({
       where: { id: agencyId },
     });
-    if (!agency) throw new NotFoundException('Agency not found.');
+    if (!agency) throw new NotFoundException('Brokerage not found.');
     return agency;
   }
   async listAgencies(sub: string) {
@@ -127,7 +127,7 @@ export class AgencyService {
       });
       if (locked.seatLimit !== null && used + reserved >= locked.seatLimit)
         throw new BadRequestException(
-          'Agency seat limit reached. Revoke an unused invitation or contact your platform administrator.',
+          'Brokerage seat limit reached. Revoke an unused invitation or contact your platform administrator.',
         );
       const created = await tx.invitation.create({
         data: {
@@ -243,7 +243,7 @@ export class AgencyService {
       });
       if (result.count !== 1)
         throw new BadRequestException(
-          'Only agent accounts in this agency can be activated or deactivated here.',
+          'Only agent accounts in this brokerage can be activated or deactivated here.',
         );
       await tx.auditLog.create({
         data: {

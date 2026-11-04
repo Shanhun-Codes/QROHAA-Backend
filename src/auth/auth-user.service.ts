@@ -79,7 +79,7 @@ export class AuthUserService {
     const user = await this.getApplicationUser(cognitoSub);
 
     if (String(user.role) !== 'AGENCY_ADMIN' || !user.agencyId) {
-      throw new ForbiddenException('Agency administrator access is required.');
+      throw new ForbiddenException('Brokerage administrator access is required.');
     }
 
     return user;
@@ -92,7 +92,7 @@ export class AuthUserService {
     });
 
     if (!agent) {
-      throw new ForbiddenException('Agent is outside this agency.');
+      throw new ForbiddenException('Agent is outside this brokerage.');
     }
 
     return agent;

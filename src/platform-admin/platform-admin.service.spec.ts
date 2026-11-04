@@ -45,7 +45,7 @@ describe('PlatformAdminService invitations', () => {
   });
 });
 
-describe('PlatformAdminService role and agency assignment', () => {
+describe('PlatformAdminService role and brokerage assignment', () => {
   function setup() {
     const user = {
       id: 'u1',
@@ -85,7 +85,7 @@ describe('PlatformAdminService role and agency assignment', () => {
     } as never);
     return { service, tx, user };
   }
-  it('creates an agency and promotes the user, linking their existing agent and auditing the change', async () => {
+  it('creates a brokerage and promotes the user, linking their existing agent and auditing the change', async () => {
     const { service, tx } = setup();
     await service.updateUserRole('admin', 'u1', {
       role: 'AGENCY_ADMIN',
@@ -105,7 +105,7 @@ describe('PlatformAdminService role and agency assignment', () => {
     );
     expect(tx.auditLog.create).toHaveBeenCalled();
   });
-  it('assigns an existing agency without creating another', async () => {
+  it('assigns an existing brokerage without creating another', async () => {
     const { service, tx } = setup();
     await service.updateUserRole('admin', 'u1', {
       role: 'AGENCY_ADMIN',
@@ -124,13 +124,13 @@ describe('PlatformAdminService role and agency assignment', () => {
     ).rejects.toThrow('seat limit');
     expect(tx.user.update).not.toHaveBeenCalled();
   });
-  it('requires an agency for agency administrators', async () => {
+  it('requires a brokerage for brokerage administrators', async () => {
     const { service } = setup();
     await expect(
       service.updateUserRole('admin', 'u1', { role: 'AGENCY_ADMIN' }),
-    ).rejects.toThrow('must have an agency');
+    ).rejects.toThrow('must have a brokerage');
   });
-  it('blocks platform administrator changes and cross-agency transfers', async () => {
+  it('blocks platform administrator changes and cross-brokerage transfers', async () => {
     const { service, user } = setup();
     user.role = 'PLATFORM_ADMIN';
     await expect(

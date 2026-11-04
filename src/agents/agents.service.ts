@@ -198,7 +198,7 @@ export class AgentsService {
       ].some((key) => updateAgentDto[key] !== undefined)
     ) {
       throw new ForbiddenException(
-        'Branding and brokerage are managed by your agency.',
+        'Branding and brokerage are managed by your brokerage.',
       );
     }
     const {
@@ -250,7 +250,7 @@ export class AgentsService {
     });
 
     if (agent?.brandingLocked) {
-      throw new ForbiddenException('Brokerage is managed by your agency.');
+      throw new ForbiddenException('Brokerage is managed by your brokerage.');
     }
 
     const licenseNumber =
@@ -330,7 +330,7 @@ export class AgentsService {
     }
 
     if (type === 'logo' && (agent.brandingLocked || agent.agencyId))
-      throw new ForbiddenException('Logo is managed by your agency.');
+      throw new ForbiddenException('Logo is managed by your brokerage.');
     const previousKey = type === 'headshot' ? agent.headshotUrl : agent.logoUrl;
 
     await this.prisma.agent.update({

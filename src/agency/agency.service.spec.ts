@@ -6,7 +6,7 @@ jest.mock('./invitation-email.service', () => ({
 }));
 import { AgencyService } from './agency.service';
 function setup() {
-  const agency = { id: 'agency-a', name: 'Agency A', seatLimit: 3 };
+  const agency = { id: 'agency-a', name: 'Brokerage A', seatLimit: 3 };
   const tx = {
     agency: { update: jest.fn().mockResolvedValue(agency) },
     agent: { count: jest.fn().mockResolvedValue(0) },
@@ -43,8 +43,8 @@ function setup() {
     mail,
   };
 }
-describe('Agency invitations and membership', () => {
-  it('denies access to a different agency before reading its data', async () => {
+describe('Brokerage invitations and membership', () => {
+  it('denies access to a different brokerage before reading its data', async () => {
     const { service, prisma } = setup();
     await expect(service.overview('sub', 'agency-b')).rejects.toBeInstanceOf(
       ForbiddenException,
@@ -71,7 +71,7 @@ describe('Agency invitations and membership', () => {
     );
     expect(mail.send).toHaveBeenCalledWith(
       'person@example.com',
-      'Agency A',
+      'Brokerage A',
       result.token,
       expect.any(Date),
     );
@@ -95,7 +95,7 @@ describe('Agency invitations and membership', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(tx.invitation.create).not.toHaveBeenCalled();
   });
-  it('cannot revoke an invitation from another agency', async () => {
+  it('cannot revoke an invitation from another brokerage', async () => {
     const { service, tx } = setup();
     tx.invitation.updateMany.mockResolvedValue({ count: 0 });
     await expect(
@@ -110,7 +110,7 @@ describe('Agency invitations and membership', () => {
       }),
     );
   });
-  it('deactivation can only affect ordinary agents inside the agency', async () => {
+  it('deactivation can only affect ordinary agents inside the brokerage', async () => {
     const { service, tx } = setup();
     await service.setStatus('sub', 'agency-a', 'user-1', 'SUSPENDED');
     expect(tx.user.updateMany).toHaveBeenCalledWith({

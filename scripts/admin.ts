@@ -228,7 +228,7 @@ export async function promptCreateInvitation(
   const email = (await input({ message: 'Invited email: ' })).trim();
   const accountTypeIndex = await askChoice('Account type', [
     'Agent',
-    'Agency administrator',
+    'Brokerage administrator',
   ]);
   const expiresInput = (
     await input({ message: 'Expires in hours (default 72): ' })
@@ -370,7 +370,7 @@ export async function promptGrantAccess(
   api: AdminApi,
   environment: EnvironmentName,
 ) {
-  const targetKind = await askChoice('Grant access to', ['User', 'Agency']);
+  const targetKind = await askChoice('Grant access to', ['User', 'Brokerage']);
   if (targetKind === 0) {
     const user = await selectUser(api);
     const type =
@@ -405,9 +405,9 @@ export async function promptGrantAccess(
     id: string;
     name: string;
   }>;
-  if (!agencies.length) throw new Error('No agencies found.');
+  if (!agencies.length) throw new Error('No brokerages found.');
   const agencyIndex = await askChoice(
-    'Agencies',
+    'Brokerages',
     agencies.map((agency) => `${agency.name} | ${agency.id}`),
   );
   const agency = agencies[agencyIndex];
@@ -425,7 +425,7 @@ export async function promptGrantAccess(
   if (
     !(await confirmMutation(
       environment,
-      `Grant ${type} access to agency ${agency.name}${expiresAt ? ` until ${expiresAt}` : ' without expiry'}.`,
+      `Grant ${type} access to brokerage ${agency.name}${expiresAt ? ` until ${expiresAt}` : ' without expiry'}.`,
     ))
   )
     return;
@@ -433,14 +433,14 @@ export async function promptGrantAccess(
     method: 'POST',
     body: JSON.stringify(body),
   });
-  stdout.write(`Granted ${type} access to agency ${agency.name}.\n`);
+  stdout.write(`Granted ${type} access to brokerage ${agency.name}.\n`);
 }
 
 export async function promptRevokeAccess(
   api: AdminApi,
   environment: EnvironmentName,
 ) {
-  const target = await askChoice('Revoke access for', ['User', 'Agency']);
+  const target = await askChoice('Revoke access for', ['User', 'Brokerage']);
   const entries =
     target === 0
       ? (
@@ -471,7 +471,7 @@ export async function promptRevokeAccess(
         ).flatMap((agency) =>
           agency.entitlements
             .filter((item) => item.status === 'ACTIVE')
-            .map((item) => ({ ...item, owner: `Agency: ${agency.name}` })),
+            .map((item) => ({ ...item, owner: `Brokerage: ${agency.name}` })),
         );
   if (!entries.length)
     throw new Error('No active entitlements found for that target type.');
@@ -504,28 +504,28 @@ export async function promptUserRole(
 ) {
   const user = await selectUser(api);
   const role =
-    (await askChoice('Role', ['Agency administrator', 'Agent'])) === 0
+    (await askChoice('Role', ['Brokerage administrator', 'Agent'])) === 0
       ? 'AGENCY_ADMIN'
       : 'AGENT';
   const agencies = (await api('/agencies')) as Array<{
     id: string;
     name: string;
   }>;
-  const choice = await askChoice('Agency assignment', [
-    'Keep current agency',
-    'Create a new agency',
+  const choice = await askChoice('Brokerage assignment', [
+    'Keep current brokerage',
+    'Create a new brokerage',
     ...agencies.map((a) => `${a.name} | ${a.id}`),
   ]);
   const agencyName =
     choice === 1
-      ? (await input({ message: 'New agency name: ' })).trim()
+      ? (await input({ message: 'New brokerage name: ' })).trim()
       : undefined;
-  if (choice === 1 && !agencyName) throw new Error('Agency name is required.');
+  if (choice === 1 && !agencyName) throw new Error('Brokerage name is required.');
   const agencyId = choice >= 2 ? agencies[choice - 2].id : undefined;
   if (
     !(await confirmMutation(
       environment,
-      `Set ${user.email} to ${role}; agency: ${agencyName ?? agencyId ?? 'current agency'}. Agent profiles will inherit agency branding. Account status and access grants stay unchanged.`,
+      `Set ${user.email} to ${role}; brokerage: ${agencyName ?? agencyId ?? 'current brokerage'}. Agent profiles will inherit brokerage branding. Account status and access grants stay unchanged.`,
     ))
   )
     return;
@@ -534,7 +534,7 @@ export async function promptUserRole(
     body: JSON.stringify({ role, agencyId, agencyName }),
   });
   stdout.write(
-    `${JSON.stringify(saved, null, 2)}\nAgency administrators can edit agency details under Agency Settings.\n`,
+    `${JSON.stringify(saved, null, 2)}\nBrokerage administrators can edit brokerage details under Brokerage Settings.\n`,
   );
 }
 
@@ -618,10 +618,10 @@ async function main() {
       'Revoke user access',
       'Suspend account',
       'Reactivate account',
-      'List agencies',
+      'List brokerages',
       'List audit logs',
       'Change environment',
-      'Change user role / assign or create agency',
+      'Change user role / assign or create brokerage',
       'Exit',
     ];
 

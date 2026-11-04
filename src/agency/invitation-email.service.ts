@@ -30,7 +30,7 @@ export class InvitationEmailService {
               Subject: { Data: `Invitation to join ${agencyName}` },
               Body: {
                 Text: {
-                  Data: `You have been invited to join ${agencyName}.\n\nSign in or create an account using ${email}, then review and accept your invitation:\n${link}\n\nThis link expires at ${expiresAt.toISOString()}. Your agency will manage your branding and brokerage details; your headshot remains yours. If you did not expect this invitation, ignore it.`,
+                  Data: `You have been invited to join ${agencyName}.\n\nSign in or create an account using ${email}, then review and accept your invitation:\n${link}\n\nThis link expires at ${expiresAt.toISOString()}. Your brokerage will manage your branding and business details; your headshot remains yours. If you did not expect this invitation, ignore it.`,
                 },
               },
             },
