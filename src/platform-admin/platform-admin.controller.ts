@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { CurrentCognitoSub } from 'src/auth/current-cognito-sub.decorator';
 import { PlatformAdminGuard } from 'src/auth/platform-admin.guard';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { GrantAccessDto } from './dto/grant-access.dto';
 import { UpdateAccountStatusDto } from './dto/update-account-status.dto';
@@ -48,6 +49,15 @@ export class PlatformAdminController {
   @Get('agencies')
   listAgencies(@CurrentCognitoSub() actorSub: string) {
     return this.platformAdminService.listAgencies(actorSub);
+  }
+
+  @Patch('users/:userId/role')
+  updateUserRole(
+    @CurrentCognitoSub() actorSub: string,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateUserRoleDto,
+  ) {
+    return this.platformAdminService.updateUserRole(actorSub, userId, dto);
   }
 
   @Patch('users/:userId/status')

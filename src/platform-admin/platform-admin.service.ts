@@ -6,6 +6,7 @@ import {
 import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { GrantAccessDto } from './dto/grant-access.dto';
 
 @Injectable()
@@ -197,6 +198,101 @@ export class PlatformAdminService {
         },
       });
       return agencies;
+    });
+  }
+
+  async updateUserRole(
+    actorSub: string,
+    userId: string,
+    dto: UpdateUserRoleDto,
+  ) {
+    const agencyName = dto.agencyName?.trim();
+    if (dto.agencyName !== undefined && !agencyName)
+      throw new BadRequestException('Agency name cannot be blank.');
+    if (dto.agencyId && agencyName)
+      throw new BadRequestException(
+        'Select an existing agency or provide a new name, not both.',
+      );
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({ where: { id: userId } });
+      if (!user) throw new NotFoundException('User not found.');
+      if (user.role === 'PLATFORM_ADMIN')
+        throw new BadRequestException(
+          'Platform administrator roles cannot be changed here.',
+        );
+      if (dto.role === 'AGENT' && !user.agentId)
+        throw new BadRequestException(
+          'This user has no agent profile and cannot become an agent.',
+        );
+      let agencyId = dto.agencyId || user.agencyId;
+      if (agencyName) {
+        const created = await tx.agency.create({ data: { name: agencyName } });
+        agencyId = created.id;
+      }
+      if (dto.role === 'AGENCY_ADMIN' && !agencyId)
+        throw new BadRequestException(
+          'An agency administrator must have an agency.',
+        );
+      if (user.agencyId && user.agencyId !== agencyId)
+        throw new BadRequestException(
+          'Transfers between agencies are not supported here.',
+        );
+      if (agencyId) {
+        const agency = await tx.agency.findUnique({ where: { id: agencyId } });
+        if (!agency) throw new NotFoundException('Agency not found.');
+        // Match the row lock used by invitations and onboarding for seat allocation.
+        await tx.agency.update({
+          where: { id: agencyId },
+          data: { updatedAt: new Date() },
+        });
+        if (user.agentId) {
+          const agent = await tx.agent.findUnique({
+            where: { id: user.agentId },
+          });
+          if (!agent) throw new NotFoundException('Agent profile not found.');
+          if (agent.agencyId && agent.agencyId !== agencyId)
+            throw new BadRequestException(
+              'Agent already belongs to another agency.',
+            );
+          if (!agent.agencyId && agency.seatLimit !== null) {
+            const used = await tx.agent.count({ where: { agencyId } });
+            const reserved = await tx.invitation.count({
+              where: {
+                agencyId,
+                revokedAt: null,
+                redeemedAt: null,
+                expiresAt: { gt: new Date() },
+              },
+            });
+            if (used + reserved >= agency.seatLimit)
+              throw new BadRequestException('Agency seat limit reached.');
+          }
+          await tx.agent.update({
+            where: { id: user.agentId },
+            data: { agencyId, brandingLocked: true },
+          });
+        }
+      }
+      const updated = await tx.user.update({
+        where: { id: userId },
+        data: { role: dto.role, agencyId },
+        select: { id: true, email: true, role: true, agencyId: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorSub,
+          action: 'USER_ROLE_UPDATED',
+          targetType: 'User',
+          targetId: userId,
+          metadata: {
+            previousRole: user.role,
+            role: dto.role,
+            previousAgencyId: user.agencyId,
+            agencyId,
+          },
+        },
+      });
+      return updated;
     });
   }
 

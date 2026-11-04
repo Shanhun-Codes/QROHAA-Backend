@@ -17,6 +17,28 @@ export class OnboardingService {
     private readonly cognitoAuthService: CognitoAuthService,
   ) {}
 
+  async inspectInvitation(cognitoSub: string, idToken: string, token: string) {
+    const identity = await this.cognitoAuthService.verifyInvitationIdentity(
+      idToken,
+      cognitoSub,
+    );
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { tokenHash: this.hashInvitationToken(token) },
+    });
+    if (
+      !invitation ||
+      invitation.revokedAt ||
+      invitation.redeemedAt ||
+      invitation.expiresAt <= new Date() ||
+      this.cognitoAuthService.normalizeEmail(invitation.email) !==
+        identity.email
+    )
+      throw new BadRequestException(
+        'Invitation is invalid or unavailable for this email.',
+      );
+    return { accountType: invitation.accountType, role: invitation.role };
+  }
+
   async inspectAgencyInvitation(
     cognitoSub: string,
     idToken: string,

@@ -97,3 +97,33 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
 # QROHAA-Backend
+
+### Agency onboarding and existing-user roles
+
+Start the interactive CLI with a Cognito-registered loopback callback:
+
+```sh
+COGNITO_CLI_REDIRECT_URI=http://localhost:8765/callback npm run admin
+```
+
+For a new agency administrator, choose **Create invitation → Agency administrator**,
+enter their email, and share the generated setup link. The portal verifies the invitation
+and displays an agency name/headline form. Redemption creates the agency and its
+administrator together. After granting beta/paid access, the administrator can complete
+brokerage details and branding in **Agency Settings**.
+
+For an existing user, choose **Change user role / assign or create agency**. Select the
+user and role, then keep their current agency, select an existing agency, or enter a new
+agency name. Agency administrators require an agency. Existing agent profiles are
+retained and linked to that agency, inheriting its branding and brokerage information.
+The operation enforces agent seat limits including outstanding invitations and records
+an audit entry. Transfers between agencies and platform-admin role changes are rejected.
+Demotion to Agent requires an existing agent profile and retains agency membership.
+
+Role changes do not activate suspended/pending accounts or grant access. Use the existing
+status/access actions separately. Reload the portal or sign in again to refresh the role;
+agency administrators can edit the agency in **Agency Settings**. A new agency can be
+given beta/paid access using **Grant additional beta/paid access → Agency**.
+
+These flows require the updated backend and portal to be deployed together. No database
+migration is required.

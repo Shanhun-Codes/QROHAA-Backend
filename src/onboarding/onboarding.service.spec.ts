@@ -224,3 +224,45 @@ describe('OnboardingService invitation redemption', () => {
     expect(transaction.agent.create).not.toHaveBeenCalled();
   });
 });
+
+describe('agency administrator onboarding', () => {
+  it('inspects the authoritative invitation type for the setup form', async () => {
+    const { service, invitation } = setup();
+    invitation.accountType = 'AGENCY';
+    invitation.role = 'AGENCY_ADMIN';
+    await expect(
+      service.inspectInvitation(identity.sub, 'id-token', 'token'),
+    ).resolves.toEqual({ accountType: 'AGENCY', role: 'AGENCY_ADMIN' });
+    invitation.email = 'someone-else@example.com';
+    await expect(
+      service.inspectInvitation(identity.sub, 'id-token', 'token'),
+    ).rejects.toThrow('invalid');
+  });
+  it('requires an agency name and creates an agency admin without an agent profile', async () => {
+    const { service, invitation, transaction } = setup();
+    invitation.accountType = 'AGENCY';
+    invitation.role = 'AGENCY_ADMIN';
+    await expect(
+      service.redeemInvitation(identity.sub, 'id-token', {
+        invitationToken: 'token',
+      }),
+    ).rejects.toThrow('Agency name');
+    transaction.agency.create.mockResolvedValue({ id: 'agency-new' });
+    await service.redeemInvitation(identity.sub, 'id-token', {
+      invitationToken: 'token',
+      agency: { name: ' Example Realty ' },
+    });
+    expect(transaction.agency.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ name: 'Example Realty' }),
+      }),
+    );
+    expect(transaction.user.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        role: 'AGENCY_ADMIN',
+        agencyId: 'agency-new',
+      }),
+    });
+    expect(transaction.agent.create).not.toHaveBeenCalled();
+  });
+});

@@ -498,6 +498,46 @@ export async function promptRevokeAccess(
   );
 }
 
+export async function promptUserRole(
+  api: AdminApi,
+  environment: EnvironmentName,
+) {
+  const user = await selectUser(api);
+  const role =
+    (await askChoice('Role', ['Agency administrator', 'Agent'])) === 0
+      ? 'AGENCY_ADMIN'
+      : 'AGENT';
+  const agencies = (await api('/agencies')) as Array<{
+    id: string;
+    name: string;
+  }>;
+  const choice = await askChoice('Agency assignment', [
+    'Keep current agency',
+    'Create a new agency',
+    ...agencies.map((a) => `${a.name} | ${a.id}`),
+  ]);
+  const agencyName =
+    choice === 1
+      ? (await input({ message: 'New agency name: ' })).trim()
+      : undefined;
+  if (choice === 1 && !agencyName) throw new Error('Agency name is required.');
+  const agencyId = choice >= 2 ? agencies[choice - 2].id : undefined;
+  if (
+    !(await confirmMutation(
+      environment,
+      `Set ${user.email} to ${role}; agency: ${agencyName ?? agencyId ?? 'current agency'}. Agent profiles will inherit agency branding. Account status and access grants stay unchanged.`,
+    ))
+  )
+    return;
+  const saved = await api(`/users/${encodeURIComponent(user.id)}/role`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role, agencyId, agencyName }),
+  });
+  stdout.write(
+    `${JSON.stringify(saved, null, 2)}\nAgency administrators can edit agency details under Agency Settings.\n`,
+  );
+}
+
 async function listInvitations(api: AdminApi) {
   const invitations = (await api('/invitations')) as Array<
     Record<string, unknown>
@@ -581,6 +621,7 @@ async function main() {
       'List agencies',
       'List audit logs',
       'Change environment',
+      'Change user role / assign or create agency',
       'Exit',
     ];
 
@@ -652,6 +693,9 @@ async function main() {
             break;
           }
           case 12:
+            await promptUserRole(activeApi, activeEnvironment);
+            break;
+          case 13:
             return;
         }
       } catch (error) {

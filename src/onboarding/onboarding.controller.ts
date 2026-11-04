@@ -65,6 +65,20 @@ export class OnboardingController {
     };
   }
 
+  @Post('invitation')
+  inspectInvitation(
+    @Req() request: Request,
+    @Headers('x-cognito-id-token') idToken: string | undefined,
+    @Body() dto: RedeemInvitationDto,
+  ) {
+    if (!idToken) throw new UnauthorizedException('Missing Cognito ID token');
+    return this.onboardingService.inspectInvitation(
+      request['user'].cognitoSub,
+      idToken,
+      dto.invitationToken,
+    );
+  }
+
   @Post('agency-invitation')
   inspectAgencyInvitation(
     @Req() request: Request,
