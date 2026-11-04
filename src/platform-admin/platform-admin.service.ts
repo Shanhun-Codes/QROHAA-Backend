@@ -208,10 +208,10 @@ export class PlatformAdminService {
   ) {
     const agencyName = dto.agencyName?.trim();
     if (dto.agencyName !== undefined && !agencyName)
-      throw new BadRequestException('Agency name cannot be blank.');
+      throw new BadRequestException('Brokerage name cannot be blank.');
     if (dto.agencyId && agencyName)
       throw new BadRequestException(
-        'Select an existing agency or provide a new name, not both.',
+        'Select an existing brokerage or provide a new name, not both.',
       );
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({ where: { id: userId } });
@@ -231,15 +231,15 @@ export class PlatformAdminService {
       }
       if (dto.role === 'AGENCY_ADMIN' && !agencyId)
         throw new BadRequestException(
-          'An agency administrator must have an agency.',
+          'A brokerage administrator must have a brokerage.',
         );
       if (user.agencyId && user.agencyId !== agencyId)
         throw new BadRequestException(
-          'Transfers between agencies are not supported here.',
+          'Transfers between brokerages are not supported here.',
         );
       if (agencyId) {
         const agency = await tx.agency.findUnique({ where: { id: agencyId } });
-        if (!agency) throw new NotFoundException('Agency not found.');
+        if (!agency) throw new NotFoundException('Brokerage not found.');
         // Match the row lock used by invitations and onboarding for seat allocation.
         await tx.agency.update({
           where: { id: agencyId },
@@ -252,7 +252,7 @@ export class PlatformAdminService {
           if (!agent) throw new NotFoundException('Agent profile not found.');
           if (agent.agencyId && agent.agencyId !== agencyId)
             throw new BadRequestException(
-              'Agent already belongs to another agency.',
+              'Agent already belongs to another brokerage.',
             );
           if (!agent.agencyId && agency.seatLimit !== null) {
             const used = await tx.agent.count({ where: { agencyId } });
@@ -265,7 +265,7 @@ export class PlatformAdminService {
               },
             });
             if (used + reserved >= agency.seatLimit)
-              throw new BadRequestException('Agency seat limit reached.');
+              throw new BadRequestException('Brokerage seat limit reached.');
           }
           await tx.agent.update({
             where: { id: user.agentId },
@@ -375,7 +375,7 @@ export class PlatformAdminService {
         data: {
           actorSub,
           action: 'ACCESS_GRANTED',
-          targetType: targetField === 'userId' ? 'User' : 'Agency',
+          targetType: targetField === 'userId' ? 'User' : 'Brokerage',
           targetId,
           metadata: {
             entitlementId: entitlement.id,
@@ -407,7 +407,7 @@ export class PlatformAdminService {
         data: {
           actorSub,
           action: 'ACCESS_REVOKED',
-          targetType: entitlement.userId ? 'User' : 'Agency',
+          targetType: entitlement.userId ? 'User' : 'Brokerage',
           targetId: entitlement.userId ?? entitlement.agencyId!,
           metadata: { entitlementId },
         },

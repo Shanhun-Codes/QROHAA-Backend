@@ -185,7 +185,7 @@ describe('OnboardingService invitation redemption', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
-  it('links verified agency invitees and locks inherited branding without creating a personal brokerage', async () => {
+  it('links verified brokerage invitees and locks inherited branding without creating a personal brokerage', async () => {
     const { service, invitation, transaction } = setup();
     invitation.agencyId = 'agency-1';
     await service.redeemInvitation(identity.sub, 'id-token', {
@@ -225,7 +225,7 @@ describe('OnboardingService invitation redemption', () => {
   });
 });
 
-describe('agency administrator onboarding', () => {
+describe('brokerage administrator onboarding', () => {
   it('inspects the authoritative invitation type for the setup form', async () => {
     const { service, invitation } = setup();
     invitation.accountType = 'AGENCY';
@@ -238,7 +238,7 @@ describe('agency administrator onboarding', () => {
       service.inspectInvitation(identity.sub, 'id-token', 'token'),
     ).rejects.toThrow('invalid');
   });
-  it('requires an agency name and creates an agency admin without an agent profile', async () => {
+  it('requires a brokerage name and creates a brokerage admin without an agent profile', async () => {
     const { service, invitation, transaction } = setup();
     invitation.accountType = 'AGENCY';
     invitation.role = 'AGENCY_ADMIN';
@@ -246,7 +246,7 @@ describe('agency administrator onboarding', () => {
       service.redeemInvitation(identity.sub, 'id-token', {
         invitationToken: 'token',
       }),
-    ).rejects.toThrow('Agency name');
+    ).rejects.toThrow('Brokerage name');
     transaction.agency.create.mockResolvedValue({ id: 'agency-new' });
     await service.redeemInvitation(identity.sub, 'id-token', {
       invitationToken: 'token',

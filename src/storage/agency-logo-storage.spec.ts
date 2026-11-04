@@ -15,9 +15,9 @@ const config = {
   getOrThrow: (key: string) =>
     key === 'AWS_REGION' ? 'us-east-1' : 'test-bucket',
 };
-describe('Agency logo storage', () => {
+describe('Brokerage logo storage', () => {
   beforeEach(() => send.mockReset());
-  it('creates a distinct agency logo key and rejects path traversal and foreign keys', async () => {
+  it('creates a distinct brokerage logo key and rejects path traversal and foreign keys', async () => {
     const service = new StorageService(config as never);
     const result = await service.createAgencyLogoUploadUrl(
       'agency-a',

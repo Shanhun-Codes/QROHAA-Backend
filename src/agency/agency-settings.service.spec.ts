@@ -6,7 +6,7 @@ import { AgencySettingsService } from './agency-settings.service';
 function setup() {
   const agency = {
     id: 'agency-a',
-    name: 'Agency A',
+    name: 'Brokerage A',
     headline: null,
     logoUrl: 'agencies/agency-a/logo/old.png',
     primaryColor: '#123456',
@@ -49,8 +49,8 @@ function setup() {
     storage,
   };
 }
-describe('Agency settings ownership and persistence', () => {
-  it('denies foreign-agency access before reading or updating settings', async () => {
+describe('Brokerage settings ownership and persistence', () => {
+  it('denies foreign-brokerage access before reading or updating settings', async () => {
     const { service, access, prisma } = setup();
     access.authorize.mockRejectedValue(new ForbiddenException());
     await expect(
@@ -59,10 +59,10 @@ describe('Agency settings ownership and persistence', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(prisma.agency.findUniqueOrThrow).not.toHaveBeenCalled();
   });
-  it('saves agency colors without changing member records or accepting privileged fields', async () => {
+  it('saves brokerage colors without changing member records or accepting privileged fields', async () => {
     const { service, tx } = setup();
     const result = await service.update('admin', 'agency-a', {
-      name: ' Updated Agency ',
+      name: ' Updated Brokerage ',
       primaryColor: 'abcdef',
       secondaryColor: '',
       seatLimit: 100,
@@ -71,23 +71,23 @@ describe('Agency settings ownership and persistence', () => {
     expect(tx.agency.update).toHaveBeenCalledWith({
       where: { id: 'agency-a' },
       data: {
-        name: 'Updated Agency',
+        name: 'Updated Brokerage',
         primaryColor: '#ABCDEF',
         secondaryColor: null,
       },
     });
     expect(result).toMatchObject({
-      name: 'Updated Agency',
+      name: 'Updated Brokerage',
       primaryColor: '#ABCDEF',
       logoUrl: 'signed:agencies/agency-a/logo/old.png',
     });
     expect(tx.auditLog.create).toHaveBeenCalled();
   });
-  it('creates agency-owned brokerage and permits clearing optional details', async () => {
+  it('creates brokerage-owned brokerage and permits clearing optional details', async () => {
     const { service, tx } = setup();
     await service.update('admin', 'agency-a', {
       brokerage: {
-        name: ' Agency Brokerage ',
+        name: ' Brokerage Brokerage ',
         licenseNumber: 'BR-123',
         phone: null,
         address: { city: ' Austin ', street2: null },
@@ -97,14 +97,14 @@ describe('Agency settings ownership and persistence', () => {
       where: { agencyId: 'agency-a' },
       create: {
         agencyId: 'agency-a',
-        name: 'Agency Brokerage',
+        name: 'Brokerage Brokerage',
         licenseNumber: 'BR-123',
         phone: null,
         city: 'Austin',
         street2: null,
       },
       update: {
-        name: 'Agency Brokerage',
+        name: 'Brokerage Brokerage',
         licenseNumber: 'BR-123',
         phone: null,
         city: 'Austin',
@@ -121,7 +121,7 @@ describe('Agency settings ownership and persistence', () => {
     ).rejects.toThrow('Brokerage name');
     expect(tx.brokerage.upsert).not.toHaveBeenCalled();
   });
-  it('cannot attach an image owned by another agency', async () => {
+  it('cannot attach an image owned by another brokerage', async () => {
     const { service, storage, prisma } = setup();
     storage.validateAgencyLogoKey.mockReturnValue(false);
     await expect(

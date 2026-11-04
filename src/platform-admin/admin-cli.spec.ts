@@ -37,7 +37,7 @@ describe('admin CLI mutations', () => {
     output = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
   });
   afterEach(() => jest.restoreAllMocks());
-  it('promotes an existing user and creates an agency through the API', async () => {
+  it('promotes an existing user and creates a brokerage through the API', async () => {
     api
       .mockResolvedValueOnce([user])
       .mockResolvedValueOnce([])
@@ -143,7 +143,7 @@ describe('admin CLI mutations', () => {
       .mockResolvedValueOnce(0)
       .mockResolvedValueOnce(1);
     api.mockResolvedValueOnce(
-      target ? [{ id: 'agency-1', name: 'Agency' }] : [user],
+      target ? [{ id: 'agency-1', name: 'Brokerage' }] : [user],
     );
     await promptGrantAccess(api, 'local');
     expect(api).toHaveBeenLastCalledWith(
@@ -156,7 +156,7 @@ describe('admin CLI mutations', () => {
     api.mockResolvedValueOnce([
       {
         ...user,
-        name: 'Agency',
+        name: 'Brokerage',
         entitlements: [
           { id: 'access-1', type: 'BETA', status: 'ACTIVE', expiresAt: null },
         ],
