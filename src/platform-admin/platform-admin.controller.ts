@@ -10,6 +10,7 @@ import {
 import { CurrentCognitoSub } from 'src/auth/current-cognito-sub.decorator';
 import { PlatformAdminGuard } from 'src/auth/platform-admin.guard';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { CreateAgencyDto } from './dto/create-agency.dto';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { GrantAccessDto } from './dto/grant-access.dto';
 import { UpdateAccountStatusDto } from './dto/update-account-status.dto';
@@ -44,6 +45,14 @@ export class PlatformAdminController {
   @Get('users')
   listUsers(@CurrentCognitoSub() actorSub: string) {
     return this.platformAdminService.listUsers(actorSub);
+  }
+
+  @Post('agencies')
+  createAgency(
+    @CurrentCognitoSub() actorSub: string,
+    @Body() dto: CreateAgencyDto,
+  ) {
+    return this.platformAdminService.createAgency(actorSub, dto.name);
   }
 
   @Get('agencies')

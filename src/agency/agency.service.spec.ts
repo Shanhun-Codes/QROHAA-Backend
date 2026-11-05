@@ -44,6 +44,22 @@ function setup() {
   };
 }
 describe('Brokerage invitations and membership', () => {
+  it('allows platform administrators to invite agents without changing their own role or membership', async () => {
+    const { service, auth, tx } = setup();
+    auth.getApplicationUser.mockResolvedValue({
+      role: 'PLATFORM_ADMIN',
+      agencyId: null,
+    });
+    await service.invite('platform-admin', 'agency-a', {
+      email: 'demo@example.com',
+    });
+    expect(tx.invitation.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ agencyId: 'agency-a', role: 'AGENT' }),
+      }),
+    );
+    expect(tx.user.updateMany).not.toHaveBeenCalled();
+  });
   it('denies access to a different brokerage before reading its data', async () => {
     const { service, prisma } = setup();
     await expect(service.overview('sub', 'agency-b')).rejects.toBeInstanceOf(
@@ -67,7 +83,6 @@ describe('Brokerage invitations and membership', () => {
     });
     expect(JSON.stringify(tx.invitation.create.mock.calls)).not.toContain(
       result.token,
-      expect.any(Date),
     );
     expect(mail.send).toHaveBeenCalledWith(
       'person@example.com',

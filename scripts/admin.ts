@@ -498,6 +498,29 @@ export async function promptRevokeAccess(
   );
 }
 
+export async function promptCreateAgency(
+  api: AdminApi,
+  environment: EnvironmentName,
+) {
+  const name = (await input({ message: 'Brokerage name: ' })).trim();
+  if (!name || name.length > 200)
+    throw new Error('Enter a brokerage name between 1 and 200 characters.');
+  if (
+    !(await confirmMutation(
+      environment,
+      `Create brokerage ${name}. Platform administrators can manage it from the brokerage selector; their role stays unchanged.`,
+    ))
+  )
+    return;
+  const created = await api('/agencies', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+  stdout.write(
+    `${JSON.stringify(created, null, 2)}\nGrant brokerage beta/paid access separately if needed.\n`,
+  );
+}
+
 export async function promptUserRole(
   api: AdminApi,
   environment: EnvironmentName,
@@ -520,7 +543,8 @@ export async function promptUserRole(
     choice === 1
       ? (await input({ message: 'New brokerage name: ' })).trim()
       : undefined;
-  if (choice === 1 && !agencyName) throw new Error('Brokerage name is required.');
+  if (choice === 1 && !agencyName)
+    throw new Error('Brokerage name is required.');
   const agencyId = choice >= 2 ? agencies[choice - 2].id : undefined;
   if (
     !(await confirmMutation(
@@ -622,6 +646,7 @@ async function main() {
       'List audit logs',
       'Change environment',
       'Change user role / assign or create brokerage',
+      'Create brokerage (keep platform-admin role)',
       'Exit',
     ];
 
@@ -696,6 +721,9 @@ async function main() {
             await promptUserRole(activeApi, activeEnvironment);
             break;
           case 13:
+            await promptCreateAgency(activeApi, activeEnvironment);
+            break;
+          case 14:
             return;
         }
       } catch (error) {

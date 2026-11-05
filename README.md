@@ -146,3 +146,10 @@ organization becomes `Organization` and the contact record becomes
 data-preserving migrations, API compatibility, persisted role/invitation values,
 storage paths, and frontend clients. Until then, new visible copy uses “brokerage”
 while integrations use the established identifiers.
+
+### Standalone testing brokerage
+
+Platform administrators can use **Create brokerage (keep platform-admin role)**
+in the admin CLI to create a named brokerage without altering their role. In the
+portal, switch to the Brokerage App and choose the new brokerage to configure its
+branding and invite an agent. Grant access separately using the CLI if needed.

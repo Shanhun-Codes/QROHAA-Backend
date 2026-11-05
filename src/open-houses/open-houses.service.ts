@@ -12,7 +12,23 @@ export class OpenHousesService {
     private readonly agentsService: AgentsService,
   ) {}
 
+  private validateTimeRange(
+    startsAt: Date | string,
+    endsAt: Date | string,
+  ): void {
+    const start = new Date(startsAt).getTime();
+    const end = new Date(endsAt).getTime();
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start)
+      throw new BadRequestException(
+        'Open house end must be after its start, with valid dates and times.',
+      );
+  }
+
   async create(agentId: string, createOpenHouseDto: CreateOpenHousesDto) {
+    this.validateTimeRange(
+      createOpenHouseDto.startsAt,
+      createOpenHouseDto.endsAt,
+    );
     const publicCode = await this.generateUniquePublicCode();
 
     const property = await this.prisma.property.findFirst({
@@ -209,6 +225,11 @@ export class OpenHousesService {
     if (!openHouse) {
       throw new BadRequestException('Open house not found for this agent.');
     }
+
+    this.validateTimeRange(
+      updateOpenHouseDto.startsAt ?? openHouse.startsAt,
+      updateOpenHouseDto.endsAt ?? openHouse.endsAt,
+    );
 
     if (updateOpenHouseDto.propertyId) {
       const property = await this.prisma.property.findFirst({
