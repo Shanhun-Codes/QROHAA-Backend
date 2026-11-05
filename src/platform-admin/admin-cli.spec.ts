@@ -5,6 +5,7 @@ jest.mock('@inquirer/prompts', () => ({
 }));
 import { select, input, confirm } from '@inquirer/prompts';
 import {
+  promptCreateAgency,
   promptUserRole,
   promptApproval,
   promptStatus,
@@ -37,6 +38,22 @@ describe('admin CLI mutations', () => {
     output = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
   });
   afterEach(() => jest.restoreAllMocks());
+  it('creates a standalone brokerage without any user role mutation', async () => {
+    answer.mockResolvedValueOnce(' Demo Brokerage ');
+    api.mockResolvedValueOnce({ id: 'brokerage1', name: 'Demo Brokerage' });
+    await promptCreateAgency(api, 'qa');
+    expect(api).toHaveBeenCalledTimes(1);
+    expect(api).toHaveBeenCalledWith('/agencies', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Demo Brokerage' }),
+    });
+  });
+  it('cancels standalone brokerage creation without API changes', async () => {
+    answer.mockResolvedValueOnce('Demo Brokerage');
+    accept.mockResolvedValueOnce(false);
+    await promptCreateAgency(api, 'qa');
+    expect(api).not.toHaveBeenCalled();
+  });
   it('promotes an existing user and creates a brokerage through the API', async () => {
     api
       .mockResolvedValueOnce([user])

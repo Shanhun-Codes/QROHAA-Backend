@@ -165,6 +165,26 @@ export class PlatformAdminService {
     });
   }
 
+  async createAgency(actorSub: string, name: string) {
+    const normalized = name.trim();
+    if (!normalized || normalized.length > 200)
+      throw new BadRequestException(
+        'Enter a brokerage name between 1 and 200 characters.',
+      );
+    return this.prisma.$transaction(async (tx) => {
+      const agency = await tx.agency.create({ data: { name: normalized } });
+      await tx.auditLog.create({
+        data: {
+          actorSub,
+          action: 'AGENCY_CREATED',
+          targetType: 'Agency',
+          targetId: agency.id,
+        },
+      });
+      return agency;
+    });
+  }
+
   async listAgencies(actorSub: string) {
     return this.prisma.$transaction(async (transaction) => {
       await this.expireDueAccess(transaction);

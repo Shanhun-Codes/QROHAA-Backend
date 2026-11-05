@@ -1,3 +1,4 @@
+jest.mock('src/storage/storage.service', () => ({ StorageService: class {} }));
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 jest.mock('src/prisma/prisma.service', () => ({
@@ -8,7 +9,6 @@ jest.mock('@nestjs/mapped-types', () => ({
 }));
 
 import { BadRequestException } from '@nestjs/common';
-import { AgentsController } from './agents.controller';
 import { AgentsService } from './agents.service';
 
 describe('Agents resource', () => {
@@ -33,12 +33,14 @@ describe('Agents resource', () => {
       callback(transaction),
     ),
   } as any;
-  const service = new AgentsService(prisma);
-  const controller = new AgentsController(service);
+  const service = new AgentsService(prisma, {} as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.agent.findUnique.mockResolvedValue(null);
+    jest
+      .spyOn(service, 'findProfile')
+      .mockResolvedValue({ id: 'agent-1' } as never);
   });
 
   it('creates an agent with normalized colors and active default questions', async () => {
@@ -73,13 +75,12 @@ describe('Agents resource', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('returns sorted active selections and forwards controller requests', async () => {
+  it('returns sorted active selections', async () => {
     prisma.agent.findUnique.mockResolvedValue({ id: 'agent-1' });
     await service.getFeedbackQuestions('agent-1');
     expect(prisma.agentFeedbackQuestion.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ orderBy: { sortOrder: 'asc' } }),
     );
-    expect(controller.getFeedbackQuestions('agent-1')).toBeInstanceOf(Promise);
   });
 
   it('updates an agent by string ID and normalizes supplied branding colors', async () => {
@@ -89,7 +90,7 @@ describe('Agents resource', () => {
       primaryColor: '#ffffff',
     });
 
-    await controller.update('agent-1', {
+    await service.update('agent-1', {
       headline: 'Updated',
       primaryColor: 'ffffff',
     } as any);

@@ -41,8 +41,8 @@ function setup() {
     accountType: 'AGENT',
     agencyId: null as string | null,
     expiresAt: new Date(Date.now() + 60_000),
-    revokedAt: null,
-    redeemedAt: null,
+    revokedAt: null as Date | null,
+    redeemedAt: null as Date | null,
   };
   const transaction = {
     invitation: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },

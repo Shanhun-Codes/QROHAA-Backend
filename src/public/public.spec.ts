@@ -1,3 +1,7 @@
+jest.mock('src/agents/agents.service', () => ({ AgentsService: class {} }));
+jest.mock('./public-submission-protection.service', () => ({
+  PublicSubmissionProtectionService: class {},
+}));
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 jest.mock('src/prisma/prisma.service', () => ({
@@ -10,7 +14,7 @@ import { PublicSubmissionProtectionService } from './public-submission-protectio
 
 describe('Public resource', () => {
   const transaction = {
-    lead: { findFirst: jest.fn() },
+    lead: { findFirst: jest.fn(), update: jest.fn() },
     feedbackSubmission: { create: jest.fn() },
   } as any;
   const prisma = {
@@ -24,7 +28,9 @@ describe('Public resource', () => {
     assertAllowed: jest.fn(),
     recordSuccessfulSubmission: jest.fn(),
   } as unknown as PublicSubmissionProtectionService;
-  const service = new PublicService(prisma, submissionProtection);
+  const service = new PublicService(prisma, submissionProtection, {
+    withAssetUrls: (agent: unknown) => agent,
+  } as never);
   const controller = new PublicController(service);
 
   beforeEach(() => {
@@ -32,8 +38,9 @@ describe('Public resource', () => {
     transaction.lead.findFirst.mockResolvedValue(null);
   });
 
-  it('selects public agent profile fields including email', () => {
-    service.findPublicAgentBySlug('michael-elder');
+  it('selects public agent profile fields including email', async () => {
+    prisma.agent.findUnique.mockResolvedValue(null);
+    await service.findPublicAgentBySlug('michael-elder');
     expect(prisma.agent.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { slug: 'michael-elder' },
@@ -94,14 +101,16 @@ describe('Public resource', () => {
     });
   });
 
-  it('forwards all public controller lookups', () => {
+  it('forwards all public controller lookups', async () => {
     prisma.agent.findUnique.mockReturnValue({});
     prisma.openHouse.findUnique.mockReturnValue({});
-    expect(controller.findAgent('michael-elder')).toEqual({});
+    await expect(controller.findAgent('michael-elder')).resolves.toEqual({});
     expect(controller.findOpenHouseByPublicCode('CODE1234')).toEqual({});
-    expect(
+    jest.spyOn(service, 'getConfigurationData').mockResolvedValue({} as never);
+    await expect(
       controller.getConfigurationData('michael-elder', 'CODE1234'),
-    ).toBeInstanceOf(Promise);
+    ).resolves.toEqual({});
+    jest.restoreAllMocks();
   });
 
   it('creates a lead and linked submission from public contact and feedback data', async () => {
@@ -148,6 +157,8 @@ describe('Public resource', () => {
           lead: {
             create: {
               firstName: 'Jordan',
+              lastName: null,
+              phone: null,
               email: 'jordan@example.com',
               agentId: 'agent-1',
             },
@@ -277,7 +288,15 @@ describe('Public resource', () => {
     expect(transaction.feedbackSubmission.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          lead: { create: { email: 'jordan@example.com', agentId: 'agent-1' } },
+          lead: {
+            create: {
+              email: 'jordan@example.com',
+              agentId: 'agent-1',
+              firstName: null,
+              lastName: null,
+              phone: null,
+            },
+          },
         }),
       }),
     );

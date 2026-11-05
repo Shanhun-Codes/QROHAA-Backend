@@ -64,46 +64,33 @@ describe('LeadsService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('includes linked submissions when loading leads', () => {
-    service.findAll();
-    service.findOne('lead-1');
-
-    expect(prisma.lead.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        include: expect.objectContaining({ submissions: expect.any(Object) }),
-      }),
-    );
+  it('scopes lead detail and its submissions to the authenticated agent', () => {
+    service.findLeadDetail('agent-1', 'lead-1');
     expect(prisma.lead.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({
-        include: expect.objectContaining({ submissions: expect.any(Object) }),
+        where: { agentId: 'agent-1', id: 'lead-1' },
+        select: expect.objectContaining({
+          submissions: expect.objectContaining({
+            where: { openHouse: { agentId: 'agent-1' } },
+          }),
+        }),
       }),
     );
   });
-
-  it('returns only selected feedback answers for each lead submission', () => {
-    service.findAllLeadsWithSelectedFeedback();
-
+  it('lists active agent leads with new leads first and excludes lost leads from the remaining group', async () => {
+    prisma.lead.findMany
+      .mockResolvedValueOnce([{ id: 'new' }])
+      .mockResolvedValueOnce([{ id: 'contacted' }]);
+    await expect(service.findAllAgentLeads('agent-1')).resolves.toEqual([
+      { id: 'new' },
+      { id: 'contacted' },
+    ]);
+    expect(prisma.lead.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { agentId: 'agent-1', status: 'NEW' } }),
+    );
     expect(prisma.lead.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        select: expect.objectContaining({
-          submissions: expect.objectContaining({
-            select: expect.objectContaining({
-              feedbackAnswers: expect.objectContaining({
-                where: {
-                  question: {
-                    key: {
-                      in: [
-                        'budget_range',
-                        'pre_qualified',
-                        'purchase_timeline',
-                      ],
-                    },
-                  },
-                },
-              }),
-            }),
-          }),
-        }),
+        where: { agentId: 'agent-1', status: { notIn: ['NEW', 'LOST'] } },
       }),
     );
   });

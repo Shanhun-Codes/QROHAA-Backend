@@ -4,13 +4,13 @@ jest.mock('src/prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
 }));
 
-import { FeedbackSubmissionService } from './feedback-submissions.service';
+import { FeedbackSubmissionsService } from './feedback-submissions.service';
 
-describe('FeedbackSubmissionService', () => {
+describe('FeedbackSubmissionsService', () => {
   const prisma = {
     feedbackSubmission: { findMany: jest.fn() },
   } as any;
-  const service = new FeedbackSubmissionService(prisma);
+  const service = new FeedbackSubmissionsService(prisma);
 
   it('returns submissions with question-first answers', async () => {
     prisma.feedbackSubmission.findMany.mockResolvedValue([

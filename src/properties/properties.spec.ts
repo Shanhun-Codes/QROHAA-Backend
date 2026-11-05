@@ -7,7 +7,6 @@ jest.mock('@nestjs/mapped-types', () => ({
   PartialType: (classRef: unknown) => classRef,
 }));
 
-import { PropertiesController } from './properties.controller';
 import { PropertiesService } from './properties.service';
 
 describe('Property resource', () => {
@@ -15,7 +14,6 @@ describe('Property resource', () => {
     property: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
   } as any;
   const service = new PropertiesService(prisma);
-  const controller = new PropertiesController(service);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -31,8 +29,10 @@ describe('Property resource', () => {
       listingPriceCents: 35000000,
     };
     prisma.property.create.mockResolvedValue(dto);
-    await expect(service.create(dto)).resolves.toEqual(dto);
-    expect(prisma.property.create).toHaveBeenCalledWith({ data: dto });
+    await expect(service.create('agent-1', dto)).resolves.toEqual(dto);
+    expect(prisma.property.create).toHaveBeenCalledWith({
+      data: { ...dto, agent: { connect: { id: 'agent-1' } } },
+    });
   });
 
   it('lists newest properties first and looks up properties by string ID', () => {
@@ -45,14 +45,4 @@ describe('Property resource', () => {
       where: { id: 'property-1' },
     });
   });
-
-  // it('forwards controller requests to the property service', () => {
-  //   const create = jest.spyOn(service, 'create');
-  //   controller.create({} as any);
-  //   expect(create).toHaveBeenCalled();
-  //   expect(controller.update('7', {} as any)).toBe(
-  //     'This action updates a #7 property',
-  //   );
-  //   expect(controller.remove('7')).toBe('This action removes a #7 property');
-  // });
 });

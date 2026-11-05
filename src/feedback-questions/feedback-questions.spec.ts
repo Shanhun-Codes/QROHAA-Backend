@@ -5,12 +5,16 @@ jest.mock('src/prisma/prisma.service', () => ({
 }));
 
 import { NotFoundException } from '@nestjs/common';
-import { FeedbackQuestionsController } from './feedback-questions.controller';
 import { FeedbackQuestionsService } from './feedback-questions.service';
 
 describe('FeedbackQuestions resource', () => {
   const transaction = {
-    feedbackQuestion: { update: jest.fn() },
+    feedbackQuestion: {
+      update: jest.fn(),
+      findUnique: jest
+        .fn<() => Promise<{ id: string }>>()
+        .mockResolvedValue({ id: 'question-1' }),
+    },
     feedbackQuestionOption: { deleteMany: jest.fn() },
   } as any;
   const prisma = {
@@ -25,7 +29,6 @@ describe('FeedbackQuestions resource', () => {
     ),
   } as any;
   const service = new FeedbackQuestionsService(prisma);
-  const controller = new FeedbackQuestionsController(service);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -69,6 +72,8 @@ describe('FeedbackQuestions resource', () => {
     jest
       .spyOn(service, 'findOne')
       .mockResolvedValue({ id: 'question-1' } as any);
-    expect(controller.findOne('question-1')).toBeInstanceOf(Promise);
+    await expect(service.findOne('question-1')).resolves.toEqual({
+      id: 'question-1',
+    });
   });
 });

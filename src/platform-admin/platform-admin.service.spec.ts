@@ -57,13 +57,11 @@ describe('PlatformAdminService role and brokerage assignment', () => {
     const tx = {
       user: {
         findUnique: jest.fn().mockResolvedValue(user),
-        update: jest
-          .fn()
-          .mockResolvedValue({
-            id: 'u1',
-            role: 'AGENCY_ADMIN',
-            agencyId: 'agency1',
-          }),
+        update: jest.fn().mockResolvedValue({
+          id: 'u1',
+          role: 'AGENCY_ADMIN',
+          agencyId: 'agency1',
+        }),
       },
       agency: {
         create: jest.fn().mockResolvedValue({ id: 'agency1' }),
@@ -147,5 +145,38 @@ describe('PlatformAdminService role and brokerage assignment', () => {
         agencyId: 'agency1',
       }),
     ).rejects.toThrow('Transfers');
+  });
+});
+
+describe('standalone brokerage creation', () => {
+  it('creates an audited brokerage without modifying any user role', async () => {
+    const tx = {
+      agency: {
+        create: jest
+          .fn()
+          .mockResolvedValue({ id: 'brokerage1', name: 'Demo Brokerage' }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const service = new PlatformAdminService({
+      $transaction: jest.fn((cb) => cb(tx)),
+    } as never);
+    await expect(
+      service.createAgency('platform-admin', ' Demo Brokerage '),
+    ).resolves.toEqual({ id: 'brokerage1', name: 'Demo Brokerage' });
+    expect(tx.agency.create).toHaveBeenCalledWith({
+      data: { name: 'Demo Brokerage' },
+    });
+    expect(tx.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        actorSub: 'platform-admin',
+        action: 'AGENCY_CREATED',
+        targetType: 'Agency',
+        targetId: 'brokerage1',
+      },
+    });
+    await expect(service.createAgency('platform-admin', '  ')).rejects.toThrow(
+      'brokerage name',
+    );
   });
 });
